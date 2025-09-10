@@ -5,7 +5,7 @@ This project is a browser-based playground for experimenting with the Jabra Java
 ## Features
 - Connect to Jabra devices using WebHID
 - View and set device properties (firmware version, mute state, etc.)
-- Control the 3-dot button LED color and mode (including custom RGB)
+- Customize the 3-dot button LED color and mode (including custom RGB)
 - Live output log in the browser
 
 ## Getting Started
