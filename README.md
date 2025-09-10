@@ -7,7 +7,6 @@ This project is a browser-based playground for experimenting with the Jabra Java
 - View and set device properties (firmware version, mute state, etc.)
 - Control the 3-dot button LED color and mode (including custom RGB)
 - Live output log in the browser
-- Modern UI with dropdowns for color and LED mode
 
 ## Getting Started
 
