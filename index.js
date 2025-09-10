@@ -1,0 +1,250 @@
+// Handler for the Break button to allow setting a breakpoint for debugging
+const breakButton = document.getElementById('breakButton');
+if (breakButton) {
+  breakButton.addEventListener('click', () => {
+    // Set a breakpoint on the next line to inspect state
+    debugger;
+    writeOutput('Break button pressed. JS execution paused for debugging.');
+  });
+}
+import { 
+  init,
+  webHidPairing,
+  RequestedBrowserTransport,
+  TransportContext,
+  LogLevel,
+  EasyCallControlFactory, 
+} from '@gnaudio/jabra-js';
+
+import { bufferTime, observeOn, Subscription } from 'rxjs';
+
+import { ButtonInteraction, createDeviceController, ButtonId, Color, LedMode } from '@gnaudio/jabra-js-button-customization';
+
+// import relevant modules from jabra-js-properties
+import { PropertyModule } from '@gnaudio/jabra-js-properties';
+
+// 3-dot button constant
+let threeDotButton;
+// let ledMode = LedMode.on;
+
+
+async function loadPropertiesDefinition() {
+      console.log("Loading properties definition...");
+      return (
+        await fetch(
+          "node_modules/@gnaudio/jabra-properties-definition/properties.json"
+        )
+      ).json();
+    }
+
+
+// Output helper to write to the outputBox textarea
+function writeOutput(msg) {
+  const box = document.getElementById('outputBox');
+  if (box) {
+    box.value += msg + '\n';
+    box.scrollTop = box.scrollHeight;
+  }
+}
+
+// Patch console.log and console.error to also write to the outputBox
+console.log = (...args) => {
+  writeOutput(args.join(' '));
+};
+console.error = (...args) => {
+  writeOutput('ERROR: ' + args.join(' '));
+};
+
+// For browser apps, you should always use CHROME_EXTENSION_WITH_WEB_HID_FALLBACK for transport. 
+/** @type {import('@gnaudio/jabra-js').IConfig} */
+const config = {
+    partnerKey: 'your-partner-key', // We recommend initializing with a proper Partner Key.
+    transport: RequestedBrowserTransport.CHROME_EXTENSION_WITH_WEB_HID_FALLBACK,
+    appId: 'my-app-id', // may contain a combination of letters (A-Z, a-z), numbers (123), underscores (_), and hyphens (-)
+    appName: 'My app name', // end-user friendly name for your application
+    logger: {
+        write(logEvent) {
+            console.log("Jabra SDK log " + logEvent.level + ": " + logEvent.message, logEvent.layer);      }
+    }
+};
+
+// Initialize Jabra library using the config object
+const jabraSdk = await init(config);
+// (...) setup device added/removed events (see below)
+
+// Load properties definition JSON
+const propertiesDefinition = await loadPropertiesDefinition();
+
+// Subscribe to Jabra devices being attached/detected by the SDK
+jabraSdk.deviceAdded.subscribe(async (/**@type {import('@gnaudio/jabra-js').IDevice} */ device) => {
+  console.log(`Device attached/detected: ${device.name} (Product ID: ${device.productId}, Serial #: ${device.serialNumber})`);
+  // (...) Your code working with the device here. 
+  // Example: Set up Easy Call Control for the device, if you're building a softphone integration. 
+  var deviceController = await createDeviceController(device);
+  threeDotButton = await deviceController.getButton(ButtonId.threeDot);
+  var threeDotButtonListener = await threeDotButton.listenFor(ButtonInteraction.tap);
+
+  /**
+   * @type {import('rxjs').Observer<any>}
+   */
+  const observer = {
+    next: () => {
+      console.log('Button tapped');
+    },
+    error: (err) => {
+      console.error('Error listening for button tap:', err);
+    },
+    complete: () => {
+      console.log('Stopped listening for button tap');
+    }
+  };
+  threeDotButtonListener.subscribe(observer);
+
+  await setInitialThreeDotColor();
+  
+
+  // PROPERTIES EXAMPLE below
+  //Initialize the SDK's properties module
+  const jabraSdkProps = new PropertyModule(jabraSdk);
+  const jabraSdkPropsFactory = await jabraSdkProps.createPropertyFactory(propertiesDefinition);
+
+
+  const propertyNames = [
+        "firmwareVersion",
+        "smartRingerEnabled",
+        "backgroundNoiseLevel",
+        "microphoneMuteState"
+  ];
+
+  const propertyMap = await jabraSdkPropsFactory.createProperties(device, propertyNames)
+  //Read properties from device
+  const firmwareVersionProperty = propertyMap.get("firmwareVersion");
+  const firmwareVersion = await firmwareVersionProperty.get();
+  console.log("Firmware version: " + firmwareVersion);
+});
+
+const webHidButton = document.getElementById('webHidButton');
+webHidButton.addEventListener('click', async () => {
+  console.log('Adding Jabra device using WebHID');
+  await webHidPairing();
+  // If user added a device, the deviceAdded and deviceList subscriptions 
+  // will trigger and you should handle the device interaction there.
+});
+
+
+
+
+const colorSelector = document.getElementById('colorSelector');
+const ledModeSelector = document.getElementById('ledModeSelector');
+
+const customColorInputs = document.getElementById('customColorInputs');
+const customR = document.getElementById('customR');
+const customG = document.getElementById('customG');
+const customB = document.getElementById('customB');
+const applyCustomColorBtn = document.getElementById('applyCustomColorBtn');
+
+// Show/hide RGB inputs based on color selection
+if (colorSelector && customColorInputs) {
+  colorSelector.addEventListener('change', () => {
+    if (colorSelector.value === 'custom') {
+      customColorInputs.style.display = '';
+    } else {
+      customColorInputs.style.display = 'none';
+    }
+  });
+}
+
+function getLedModeEnum(modeValue) {
+  switch (modeValue) {
+    case 'on':
+      return LedMode.on;
+    case 'slowPulse':
+      return LedMode.slowPulse;
+    case 'fastPulse':
+      return LedMode.fastPulse;
+    case 'off':
+      return LedMode.off;
+    default:
+      return LedMode.on;
+  }
+}
+
+
+function getColorValue() {
+  if (colorSelector.value === 'custom' && customR && customG && customB) {
+    // Clamp values to 0-255
+    const r = Math.max(0, Math.min(255, parseInt(customR.value, 10) || 0));
+    const g = Math.max(0, Math.min(255, parseInt(customG.value, 10) || 0));
+    const b = Math.max(0, Math.min(255, parseInt(customB.value, 10) || 0));
+    return { r, g, b, isCustom: true };
+  }
+  switch (colorSelector.value) {
+    case 'blue':
+      return { colorEnum: Color.blue, isCustom: false };
+    case 'red':
+      return { colorEnum: Color.red, isCustom: false };
+    case 'green':
+      return { colorEnum: Color.green, isCustom: false };
+    case 'yellow':
+      return { colorEnum: Color.yellow, isCustom: false };
+    default:
+      return { colorEnum: Color.blue, isCustom: false };
+  }
+}
+
+
+
+// Set color or mode on dropdown change
+function updateThreeDotButtonLed() {
+  if (threeDotButton && colorSelector && ledModeSelector) {
+    const color = getColorValue();
+    const modeEnum = getLedModeEnum(ledModeSelector.value);
+    if (color.isCustom) {
+      // Only set color when Apply button is pressed
+      return;
+    } else {
+      threeDotButton.setColor(color.colorEnum, modeEnum);
+      console.log(`Set 3-dot button LED to ${colorSelector.value}, mode: ${ledModeSelector.value}`);
+    }
+  }
+}
+
+if (colorSelector) colorSelector.addEventListener('change', updateThreeDotButtonLed);
+if (ledModeSelector) {
+  ledModeSelector.addEventListener('change', () => {
+    if (colorSelector && colorSelector.value === 'custom' && applyCustomColorBtn) {
+      // If custom, apply immediately
+      applyCustomColorBtn.click();
+    } else {
+      updateThreeDotButtonLed();
+    }
+  });
+}
+
+if (applyCustomColorBtn) {
+  applyCustomColorBtn.addEventListener('click', () => {
+    if (threeDotButton && colorSelector && ledModeSelector && colorSelector.value === 'custom') {
+      const color = getColorValue();
+      const modeEnum = getLedModeEnum(ledModeSelector.value);
+      threeDotButton.setColor(new Color(color.r, color.g, color.b), modeEnum);
+      console.log(`Set 3-dot button LED to custom RGB (${color.r},${color.g},${color.b}), mode: ${ledModeSelector.value}`);
+    }
+  });
+}
+
+
+
+// Set color and mode on page load/device attach
+async function setInitialThreeDotColor() {
+  if (threeDotButton && colorSelector && ledModeSelector) {
+    const color = getColorValue();
+    const modeEnum = getLedModeEnum(ledModeSelector.value);
+    if (color.isCustom) {
+      await threeDotButton.setColor({ r: color.r, g: color.g, b: color.b }, modeEnum);
+      console.log(`Set 3-dot button LED to custom RGB (${color.r},${color.g},${color.b}), mode: ${ledModeSelector.value} (initial)`);
+    } else {
+      await threeDotButton.setColor(color.colorEnum, modeEnum);
+      console.log(`Set 3-dot button LED to ${colorSelector.value}, mode: ${ledModeSelector.value} (initial)`);
+    }
+  }
+}
