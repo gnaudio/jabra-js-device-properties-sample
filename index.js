@@ -1,127 +1,158 @@
-// Handler for the Break button to allow setting a breakpoint for debugging
-const breakButton = document.getElementById('breakButton');
-if (breakButton) {
-  breakButton.addEventListener('click', () => {
-    // Set a breakpoint on the next line to inspect state
-    debugger;
-    writeOutput('Break button pressed. JS execution paused for debugging.');
-  });
-}
-import { 
+import {
   init,
   webHidPairing,
   RequestedBrowserTransport,
   TransportContext,
   LogLevel,
-  EasyCallControlFactory, 
+  EasyCallControlFactory,
 } from '@gnaudio/jabra-js';
 
-import { bufferTime, observeOn, Subscription } from 'rxjs';
+// import { bufferTime, observeOn, Subscription } from 'rxjs';
 
 import { ButtonInteraction, createDeviceController, ButtonId, Color, LedMode } from '@gnaudio/jabra-js-button-customization';
 
 // import relevant modules from jabra-js-properties
 import { PropertyModule } from '@gnaudio/jabra-js-properties';
 
-// 3-dot button constant
+// 3-dot button
 let threeDotButton;
-// let ledMode = LedMode.on;
+let propertyModule;
+/** @type {import('@gnaudio/jabra-js-properties').IPropertyFactory} */
+let propertyFactory;
+let propertiesModuleReady = false;
 
-
-async function loadPropertiesDefinition() {
-      console.log("Loading properties definition...");
-      return (
-        await fetch(
-          "node_modules/@gnaudio/jabra-properties-definition/properties.json"
-        )
-      ).json();
-    }
-
-
-// Output helper to write to the outputBox textarea
-function writeOutput(msg) {
-  const box = document.getElementById('outputBox');
-  if (box) {
-    box.value += msg + '\n';
-    box.scrollTop = box.scrollHeight;
-  }
-}
-
-// Patch console.log and console.error to also write to the outputBox
-console.log = (...args) => {
-  writeOutput(args.join(' '));
-};
-console.error = (...args) => {
-  writeOutput('ERROR: ' + args.join(' '));
-};
 
 // For browser apps, you should always use CHROME_EXTENSION_WITH_WEB_HID_FALLBACK for transport. 
 /** @type {import('@gnaudio/jabra-js').IConfig} */
 const config = {
-    partnerKey: 'your-partner-key', // We recommend initializing with a proper Partner Key.
-    transport: RequestedBrowserTransport.CHROME_EXTENSION_WITH_WEB_HID_FALLBACK,
-    appId: 'my-app-id', // may contain a combination of letters (A-Z, a-z), numbers (123), underscores (_), and hyphens (-)
-    appName: 'My app name', // end-user friendly name for your application
-    logger: {
-        write(logEvent) {
-            console.log("Jabra SDK log " + logEvent.level + ": " + logEvent.message, logEvent.layer);      }
+  partnerKey: 'your-partner-key', // We recommend initializing with a proper Partner Key.
+  transport: RequestedBrowserTransport.CHROME_EXTENSION_WITH_WEB_HID_FALLBACK,
+  appId: 'my-app-id', // may contain a combination of letters (A-Z, a-z), numbers (123), underscores (_), and hyphens (-)
+  appName: 'My app name', // end-user friendly name for your application
+  logger: {
+    write(logEvent) {
+      if (logEvent.level == LogLevel.ERROR) {
+        console.error("Jabra SDK log " + logEvent.level + ": " + logEvent.message, logEvent.layer);
+      }
     }
+  }
 };
+
+// Load properties definition JSON
+const propertiesDefinition = await loadPropertiesDefinition();
+
+// NOTE: Timing wise we need to load the properties definition before initializing the SDK
+// as the PropertyModule needs it during initialization. Also, we want to set up the deviceAdded subscription
+// immediately after initializing the SDK to avoid missing any devices.
+// INTERNAL NOTE: Feature request to update init: 982357
 
 // Initialize Jabra library using the config object
 const jabraSdk = await init(config);
 // (...) setup device added/removed events (see below)
 
-// Load properties definition JSON
-const propertiesDefinition = await loadPropertiesDefinition();
-
 // Subscribe to Jabra devices being attached/detected by the SDK
 jabraSdk.deviceAdded.subscribe(async (/**@type {import('@gnaudio/jabra-js').IDevice} */ device) => {
   console.log(`Device attached/detected: ${device.name} (Product ID: ${device.productId}, Serial #: ${device.serialNumber})`);
-  // (...) Your code working with the device here. 
-  // Example: Set up Easy Call Control for the device, if you're building a softphone integration. 
-  var deviceController = await createDeviceController(device);
-  threeDotButton = await deviceController.getButton(ButtonId.threeDot);
-  var threeDotButtonListener = await threeDotButton.listenFor(ButtonInteraction.tap);
 
-  /**
-   * @type {import('rxjs').Observer<any>}
-   */
-  const observer = {
-    next: () => {
-      console.log('Button tapped');
-    },
-    error: (err) => {
-      console.error('Error listening for button tap:', err);
-    },
-    complete: () => {
-      console.log('Stopped listening for button tap');
+  // Use Properties module to read common properties
+  readCommonProperties(device);
+
+  // Customize 3-dot button if supported by device
+  // Currently supported on Engage 40/50/50II only
+  // For same device models, subscribe to relevant audio telemetry events as well.   
+  if ((device.name == "Jabra Engage 40") || (device.name == "Jabra Engage 50") || (device.name == "Jabra Engage 50 II")) {
+    // Try to customize the 3-dot button if controller is connected. 
+    if (customizeButton(device)) {
+      console.log("3-dot button customization set up for device " + device.name +
+        " - tap the button to see events in the log");
+    } else {
+      console.log("Failed to set up 3-dot button customization for device " + device.name);
     }
+
+
   };
-  threeDotButtonListener.subscribe(observer);
 
-  await setInitialThreeDotColor();
+
+  /*
   
-
-  // PROPERTIES EXAMPLE below
-  //Initialize the SDK's properties module
-  const jabraSdkProps = new PropertyModule(jabraSdk);
-  const jabraSdkPropsFactory = await jabraSdkProps.createPropertyFactory(propertiesDefinition);
-
-
-  const propertyNames = [
-        "firmwareVersion",
-        "smartRingerEnabled",
-        "backgroundNoiseLevel",
-        "microphoneMuteState"
-  ];
-
-  const propertyMap = await jabraSdkPropsFactory.createProperties(device, propertyNames)
-  //Read properties from device
-  const firmwareVersionProperty = propertyMap.get("firmwareVersion");
-  const firmwareVersion = await firmwareVersionProperty.get();
-  console.log("Firmware version: " + firmwareVersion);
+   
+  
+    const propertyNames = [
+      "firmwareVersion",
+      "smartRingerEnabled",
+      "backgroundNoiseLevel",
+      "microphoneMuteState"
+    ];
+  
+    const propertyMap = await jabraSdkPropsFactory.createProperties(device, propertyNames)
+    //Read properties from device
+    const firmwareVersionProperty = propertyMap.get("firmwareVersion");
+    const firmwareVersion = await firmwareVersionProperty.get();
+    console.log("Firmware version: " + firmwareVersion);
+  
+    */
 });
+
+async function readCommonProperties(device) {
+  try {
+    // Initialize the SDK's properties module if needed
+    if (!propertiesModuleReady) { await initPropertyModule(); }
+    const propertyNames = [
+      "firmwareVersion"
+    ];
+    
+    const propertyMap = await propertyFactory.createProperties(device, propertyNames);
+    if (propertyMap) {
+      console.log("Property map created for device " + device.name);
+      //Read properties from device
+      const firmwareVersionProperty = propertyMap.get("firmwareVersion");
+      const firmwareVersion = await firmwareVersionProperty.get();
+      console.log("Firmware version for " + device.name + ": " + firmwareVersion);
+    }
+  } catch (error) {
+    console.error("Error reading properties for device " + device.name + ": " + error);
+  }
+}
+
+async function initPropertyModule() {
+  propertyModule = new PropertyModule(jabraSdk);
+  propertyFactory = await propertyModule.createPropertyFactory(propertiesDefinition);
+  propertiesModuleReady = true;
+}
+
+// Customize button function if supported by headset
+async function customizeButton(device) {
+  try {
+    const deviceController = await createDeviceController(device);
+    if (deviceController) {
+      threeDotButton = await deviceController.getButton(ButtonId.threeDot);
+      const threeDotButtonListener = await threeDotButton.listenFor(ButtonInteraction.tap);
+
+      /**
+       * @type {import('rxjs').Observer<any>}
+       */
+      const observer = {
+        next: () => {
+          console.log('Button tapped');
+        },
+        error: (err) => {
+          console.error('Error listening for button tap:', err);
+        },
+        complete: () => {
+          console.log('Stopped listening for button tap');
+        }
+      };
+      threeDotButtonListener.subscribe(observer);
+      await setInitialThreeDotColor();
+      // Successfully set up customization - return true
+      return true;
+    } else { return false; }
+
+  } catch (error) {
+    console.error('Error customizing button:', error);
+    return false;
+  }
+}
 
 const webHidButton = document.getElementById('webHidButton');
 webHidButton.addEventListener('click', async () => {
@@ -248,3 +279,30 @@ async function setInitialThreeDotColor() {
     }
   }
 }
+
+async function loadPropertiesDefinition() {
+  console.log("Loading properties definition...");
+  return (
+    await fetch(
+      "node_modules/@gnaudio/jabra-properties-definition/properties.json"
+    )
+  ).json();
+}
+
+
+// Output helper to write to the outputBox textarea
+function writeOutput(msg) {
+  const box = document.getElementById('outputBox');
+  if (box) {
+    box.value += msg + '\n';
+    box.scrollTop = box.scrollHeight;
+  }
+}
+
+// Patch console.log and console.error to also write to the outputBox
+console.log = (...args) => {
+  writeOutput(args.join(' '));
+};
+console.error = (...args) => {
+  writeOutput('ERROR: ' + args.join(' '));
+};

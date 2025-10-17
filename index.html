@@ -16,7 +16,7 @@
         h5,
         h6 {
             font-family: Arial, sans-serif !important;
-            overflow:visible;
+            overflow: visible;
         }
 
         button,
@@ -32,10 +32,8 @@
         }
 
         select {
-            
             font-family: Arial, sans-serif !important;
             font-size: 1em;
-            box-sizing: border-box;
         }
     </style>
 </head>
@@ -44,18 +42,18 @@
     <h1>Jabra JavaScript SDK properties and button customization demo</h1>
     <textarea id="outputBox" rows="25" cols="180" readonly
         style="display:block;margin-bottom:1em;font-size:.8em;width:98vw;max-width:1800px;height:40vh;"></textarea>
-        <br>
+    <br>
     <button id="webHidButton">Add Jabra headset</button>
     <br><br>
-    <label for="colorSelector">Three-dot button color:</label>
-    <select id="colorSelector">
-                <option value="blue" selected>Blue</option>
-                <option value="red">Red</option>
-                <option value="green">Green</option>
-                <option value="yellow">Yellow</option>
-                <option value="custom">Custom (RGB)</option>
+   
+        <label for="colorSelector">Three-dot button color:</label>
+        <select id="colorSelector">
+            <option value="blue" selected>Blue</option>
+            <option value="red">Red</option>
+            <option value="green">Green</option>
+            <option value="yellow">Yellow</option>
+            <option value="custom">Custom (RGB)</option>
         </select>
-
         <span id="customColorInputs" style="display:none; margin-left: 1em;">
             <span style="margin-right: 1em; color: #666; font-size: 0.95em;">(Red, Green, Blue: 0–255)</span>
             <label for="customR">Red:</label>
@@ -66,15 +64,14 @@
             <input type="number" id="customB" min="0" max="255" value="0" style="width:4em; margin-right:0.5em;">
             <button id="applyCustomColorBtn" style="margin-left:1em;">Apply</button>
         </span>
-    </select>
-
+    
     <br><br>
     <label for="ledModeSelector">LED mode:</label>
     <select id="ledModeSelector">
-        <option value="on" selected>On</option>
-        <option value="slowPulse">Slow blink</option>
-        <option value="fastPulse">Fast blink</option>
-        <option value="off">Off</option>
+        <option value="on" selected>on</option>
+        <option value="slowPulse">slowPulse</option>
+        <option value="fastPulse">fastPulse</option>
+        <option value="off">off</option>
     </select>
     <script type="module" src="./index.js"></script>
 </body>
