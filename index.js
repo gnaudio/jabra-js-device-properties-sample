@@ -15,12 +15,30 @@ import { ButtonInteraction, createDeviceController, ButtonId, Color, LedMode } f
 import { PropertyModule } from '@gnaudio/jabra-js-properties';
 
 // 3-dot button
+/** @type {import('@gnaudio/jabra-js-button-customization').IButton} */
 let threeDotButton;
+/** @type {import('@gnaudio/jabra-js-properties').IPropertyModule} */
 let propertyModule;
 /** @type {import('@gnaudio/jabra-js-properties').IPropertyFactory} */
 let propertyFactory;
+
 let propertiesModuleReady = false;
 
+// Output helper to write to the outputBox textarea
+function writeOutput(msg) {
+  const box = document.getElementById('outputBox');
+  if (box) {
+    box.value += msg + '\n';
+    box.scrollTop = box.scrollHeight;
+  }
+}
+// Patch console.log and console.error to also write to the outputBox
+console.log = (...args) => {
+  writeOutput(args.join(' '));
+};
+console.error = (...args) => {
+  writeOutput('ERROR: ' + args.join(' '));
+};
 
 // For browser apps, you should always use CHROME_EXTENSION_WITH_WEB_HID_FALLBACK for transport. 
 /** @type {import('@gnaudio/jabra-js').IConfig} */
@@ -50,15 +68,24 @@ const propertiesDefinition = await loadPropertiesDefinition();
 const jabraSdk = await init(config);
 // (...) setup device added/removed events (see below)
 
+if (jabraSdk.transportContext === TransportContext.WEB_HID) {
+  console.log("Jabra SDK initialized using WebHID transport. Properties will only work on devices that support WebHID fully such as Jabra Engage 40, 50, 50 II. If you need to use properties with other devices, try using the Chrome Extension transport instead.");
+} else {
+  console.log("Jabra SDK initialized using Chrome Extension transport. Properties should work on all supported devices.");
+}
+
 // Subscribe to Jabra devices being attached/detected by the SDK
 jabraSdk.deviceAdded.subscribe(async (/**@type {import('@gnaudio/jabra-js').IDevice} */ device) => {
   console.log(`Device attached/detected: ${device.name} (Product ID: ${device.productId}, Serial #: ${device.serialNumber})`);
+
+  // Update active headset name field
+  setActiveHeadsetName(device.name);
 
   // Use Properties module to read common properties
   readCommonProperties(device);
 
   // Customize 3-dot button if supported by device
-  // Currently supported on Engage 40/50/50II only
+  // Currently supported on Jabra Engage 40/50/50 II only
   // For same device models, subscribe to relevant audio telemetry events as well.   
   if ((device.name == "Jabra Engage 40") || (device.name == "Jabra Engage 50") || (device.name == "Jabra Engage 50 II")) {
     // Try to customize the 3-dot button if controller is connected. 
@@ -68,6 +95,9 @@ jabraSdk.deviceAdded.subscribe(async (/**@type {import('@gnaudio/jabra-js').IDev
     } else {
       console.log("Failed to set up 3-dot button customization for device " + device.name);
     }
+
+    // Subscribe to audio telemetry properties
+    observeAudioTelemetry(device);
 
 
   };
@@ -93,6 +123,71 @@ jabraSdk.deviceAdded.subscribe(async (/**@type {import('@gnaudio/jabra-js').IDev
     */
 });
 
+async function observeAudioTelemetry(device) {
+  try {
+    // Initialize the SDK's properties module if needed
+    if (!propertiesModuleReady) { await initPropertyModule(); }
+    const propertyNames = [
+      "backgroundNoiseLevel",
+      "audioExposure",
+      "customerSpeaking",
+      "agentSpeaking",
+      "microphoneMuteState"
+    ];
+    const propertyMap = await propertyFactory.createProperties(device, propertyNames);
+    if (propertyMap) {
+      console.log("Property map created for device " + device.name);
+      // Observe properties from device
+      const backgroundNoiseLevelProperty = propertyMap.get("backgroundNoiseLevel");
+      const audioExposureProperty = propertyMap.get("audioExposure");
+      const customerSpeakingProperty = propertyMap.get("customerSpeaking");
+      const agentSpeakingProperty = propertyMap.get("agentSpeaking");
+      const microphoneMuteStateProperty = propertyMap.get("microphoneMuteState");
+      // Generic subscriptions (only attach if property exists)
+      attachPropertySubscription(device, 'backgroundNoiseLevel', backgroundNoiseLevelProperty, (v) => setAmbientNoise(v));
+      attachPropertySubscription(device, 'audioExposure', audioExposureProperty, (v) => setAudioExposure(v));
+      attachPropertySubscription(device, 'customerSpeaking', customerSpeakingProperty);
+      attachPropertySubscription(device, 'agentSpeaking', agentSpeakingProperty);
+      attachPropertySubscription(device, 'microphoneMuteState', microphoneMuteStateProperty);
+    }
+  } catch (err) {
+    console.error('Error observing audio telemetry:', err);
+  }
+}
+
+/**
+ * Generic property subscription helper.
+ * @template T
+ * @param {import('@gnaudio/jabra-js').IDevice} device
+ * @param {string} propertyName
+ * @param {*} propertyObj - Property object returned from factory (must have watch())
+ * @param {(value: T) => void} [onValue] - Optional callback for each value.
+ */
+function attachPropertySubscription(device, propertyName, propertyObj, onValue) {
+  if (!propertyObj || typeof propertyObj.watch !== 'function') {
+    console.warn(`${propertyName} property missing watch()`);
+    return;
+  }
+  propertyObj.watch().subscribe({
+    next(value) {
+      console.log(`${propertyName} for ${device.name}:`, value);
+      if (onValue) {
+        try { onValue(value); } catch (e) { console.warn(`onValue handler threw for ${propertyName}`, e); }
+      }
+    },
+    error(e) {
+      if (typeof jabra !== 'undefined' && e instanceof jabra.JabraError) {
+        console.warn(`Could not subscribe to ${propertyName}. It may not be supported by ${device.name}`);
+      } else {
+        console.warn(`Failed monitoring ${propertyName} on ${device.name}`, e);
+      }
+    },
+    complete() {
+      console.log(`Completed observing ${propertyName} for ${device.name}`);
+    }
+  });
+}
+
 async function readCommonProperties(device) {
   try {
     // Initialize the SDK's properties module if needed
@@ -110,6 +205,7 @@ async function readCommonProperties(device) {
       console.log("Firmware version for " + device.name + ": " + firmwareVersion);
     }
   } catch (error) {
+    // This commonly happens if you try to read properties from a device that does not support WebHID transport for properties. 
     console.error("Error reading properties for device " + device.name + ": " + error);
   }
 }
@@ -289,20 +385,60 @@ async function loadPropertiesDefinition() {
   ).json();
 }
 
-
-// Output helper to write to the outputBox textarea
-function writeOutput(msg) {
-  const box = document.getElementById('outputBox');
-  if (box) {
-    box.value += msg + '\n';
-    box.scrollTop = box.scrollHeight;
-  }
+// ===== UI helper functions for right-hand telemetry panel =====
+/**
+ * Set the active headset name text.
+ * @param {string} name 
+ */
+function setActiveHeadsetName(name) {
+  const el = document.getElementById('activeHeadsetName');
+  if (el) { el.textContent = name; }
 }
 
-// Patch console.log and console.error to also write to the outputBox
-console.log = (...args) => {
-  writeOutput(args.join(' '));
+/**
+ * Update ambient noise value in dB. 
+ * @param {number|null|undefined} value
+ */
+function setAmbientNoise(value) {
+  const el = document.getElementById('ambientNoiseValue');
+  el.value = value;
+  el.style.color = 'green';
+  if (value > 65) { el.style.color = 'orange'; };
+  if (value > 80) { el.style.color = 'red'; };
+}
+
+/**
+ * Update audio exposure value in dB.
+ * @param {number|null|undefined} value
+ */
+function setAudioExposure(value) {
+  const el = document.getElementById('audioExposureValue');
+  el.value = value;
+  el.style.color = 'green';
+  if (value > 65) { el.style.color = 'orange'; };
+  if (value > 80) { el.style.color = 'red'; };
+}
+
+/**
+ * Set speech analytics text.
+ * @param {string} text
+ * @param {Color} color
+ */
+function setSpeechAnalytics(text, color) {
+  const el = document.getElementById('speechAnalyticsValue');
+  el.value = (text);
+  el.style.color = color;
+}
+
+// Expose helpers globally for easy testing in console
+window.jabraDemo = {
+  setActiveHeadsetName,
+  setAmbientNoise,
+  setAudioExposure,
+  setSpeechAnalytics
 };
-console.error = (...args) => {
-  writeOutput('ERROR: ' + args.join(' '));
-};
+
+console.log('Telemetry UI helpers ready: jabraDemo.setAmbientNoise(n), setAudioExposure(n), setSpeechAnalytics(text, quality)');
+
+
+

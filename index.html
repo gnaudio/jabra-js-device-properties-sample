@@ -28,51 +28,83 @@
 
         textarea#outputBox {
             font-family: Consolas, monospace !important;
-            font-size: 1em;
+            font-size: 0.8em;
+            width: 100%;
+            height: 40vh;
+            resize: vertical;
         }
 
-        select {
-            font-family: Arial, sans-serif !important;
-            font-size: 1em;
-        }
+        select { font-family: Arial, sans-serif !important; font-size: 1em; }
+
+        /* --- Layout --- */
+        .layout { display: flex; gap: 24px; align-items: flex-start; }
+        .left-pane, .right-pane { flex: 1 1 50%; max-width: 50%; }
+        .left-pane { min-width: 0; }
+        @media (max-width: 900px) { .layout { flex-direction: column; } .left-pane, .right-pane { max-width:100%; } }
+
+        /* --- Right panel styles --- */
+        .info-panel { border:1px solid #ccc; padding:16px; border-radius:8px; background:#fafafa; font-size:0.95em; }
+        .info-panel h2 { margin:0 0 12px 0; font-size:1.1em; }
+        .kv { display:flex; align-items:center; margin-bottom:12px; }
+        .kv label { min-width:140px; font-weight:600; }
+        .small-num { width:4ch; text-align:right; padding:10px 4px; box-sizing:border-box; border:1px solid #666; border-radius:4px; background:#fff; }
+        #speechAnalyticsValue { width:100%; max-width:260px; padding:4px 6px; border:0px solid #666; border-radius:4px; font-size:0.9em; }
+        /* Make readonly numeric inputs visually non-editable but selectable */
+        .small-num[readonly] { background:#f9f9f9; font-size: medium; font-weight: bold;}
     </style>
 </head>
 
 <body>
     <h1>Jabra JavaScript SDK properties and button customization demo</h1>
-    <textarea id="outputBox" rows="25" cols="180" readonly
-        style="display:block;margin-bottom:1em;font-size:.8em;width:98vw;max-width:1800px;height:40vh;"></textarea>
-    <br>
-    <button id="webHidButton">Add Jabra headset</button>
-    <br><br>
-   
-        <label for="colorSelector">Three-dot button color:</label>
-        <select id="colorSelector">
-            <option value="blue" selected>Blue</option>
-            <option value="red">Red</option>
-            <option value="green">Green</option>
-            <option value="yellow">Yellow</option>
-            <option value="custom">Custom (RGB)</option>
-        </select>
-        <span id="customColorInputs" style="display:none; margin-left: 1em;">
-            <span style="margin-right: 1em; color: #666; font-size: 0.95em;">(Red, Green, Blue: 0–255)</span>
-            <label for="customR">Red:</label>
-            <input type="number" id="customR" min="0" max="255" value="0" style="width:4em; margin-right:0.5em;">
-            <label for="customG">Green:</label>
-            <input type="number" id="customG" min="0" max="255" value="0" style="width:4em; margin-right:0.5em;">
-            <label for="customB">Blue:</label>
-            <input type="number" id="customB" min="0" max="255" value="0" style="width:4em; margin-right:0.5em;">
-            <button id="applyCustomColorBtn" style="margin-left:1em;">Apply</button>
-        </span>
-    
-    <br><br>
-    <label for="ledModeSelector">LED mode:</label>
-    <select id="ledModeSelector">
-        <option value="on" selected>on</option>
-        <option value="slowPulse">slowPulse</option>
-        <option value="fastPulse">fastPulse</option>
-        <option value="off">off</option>
-    </select>
+    <div class="layout">
+        <div class="left-pane">
+            <!-- Output/log area -->
+            <textarea id="outputBox" readonly></textarea>
+            <br>
+            <button id="webHidButton">Add Jabra headset</button>
+            <br><br>
+            <!-- Existing customization controls remain on left -->
+            <label for="colorSelector">Three-dot button color:</label>
+            <select id="colorSelector">
+                <option value="blue" selected>Blue</option>
+                <option value="red">Red</option>
+                <option value="green">Green</option>
+                <option value="yellow">Yellow</option>
+                <option value="custom">Custom (RGB)</option>
+            </select>
+            <span id="customColorInputs" style="display:none; margin-left: 1em;">
+                <span style="margin-right: 1em; color: #666; font-size: 0.95em;">(Red, Green, Blue: 0–255)</span>
+                <label for="customR">Red:</label>
+                <input type="number" id="customR" min="0" max="255" value="0" style="width:4em; margin-right:0.5em;">
+                <label for="customG">Green:</label>
+                <input type="number" id="customG" min="0" max="255" value="0" style="width:4em; margin-right:0.5em;">
+                <label for="customB">Blue:</label>
+                <input type="number" id="customB" min="0" max="255" value="0" style="width:4em; margin-right:0.5em;">
+                <button id="applyCustomColorBtn" style="margin-left:1em;">Apply</button>
+            </span>
+            <br><br>
+            <label for="ledModeSelector">LED mode:</label>
+            <select id="ledModeSelector">
+                <option value="on" selected>on</option>
+                <option value="slowPulse">slowPulse</option>
+                <option value="fastPulse">fastPulse</option>
+                <option value="off">off</option>
+            </select>
+        </div>
+        <div class="right-pane">
+            <!-- Telemetry / status panel -->
+            <div class="info-panel">
+                <h2>Headset & Telemetry</h2>
+                <div class="kv"><label>Active headset:</label> <span id="activeHeadsetName">(none)</span></div>
+                <div class="kv"><label for="ambientNoiseValue">Ambient noise:</label> <input id="ambientNoiseValue" class="small-num" type="text" readonly placeholder="n/a" aria-label="Ambient noise level"></div>
+                <div class="kv"><label for="audioExposureValue">Audio exposure:</label> <input id="audioExposureValue" class="small-num" type="text" readonly placeholder="n/a" aria-label="Audio exposure"></div>
+                <div class="kv" style="flex-direction:column; align-items:stretch;">
+                    <label for="speechAnalyticsValue" style="min-width:0; font-weight:600;">Speech analytics:</label>
+                    <input id="speechAnalyticsValue" type="text" maxlength="30" placeholder="" aria-label="Speech analytics value">
+                </div>
+            </div>
+        </div>
+    </div>
     <script type="module" src="./index.js"></script>
 </body>
 
