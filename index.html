@@ -39,18 +39,20 @@
         /* --- Layout --- */
         .layout { display: flex; gap: 24px; align-items: flex-start; }
         .left-pane, .right-pane { flex: 1 1 50%; max-width: 50%; }
-        .left-pane { min-width: 0; }
-        @media (max-width: 900px) { .layout { flex-direction: column; } .left-pane, .right-pane { max-width:100%; } }
+        .left-pane { min-width: 400px; }
+        .right-pane { min-width: 400px; }
+        @media (max-width: 800px) { .layout { flex-direction: column; } .left-pane, .right-pane { max-width:100%; } }
 
         /* --- Right panel styles --- */
         .info-panel { border:1px solid #ccc; padding:16px; border-radius:8px; background:#fafafa; font-size:0.95em; }
         .info-panel h2 { margin:0 0 12px 0; font-size:1.1em; }
         .kv { display:flex; align-items:center; margin-bottom:12px; }
-        .kv label { min-width:140px; font-weight:600; }
+        .kv label { min-width:180px; font-weight:600; }
         .small-num { width:4ch; text-align:right; padding:10px 4px; box-sizing:border-box; border:1px solid #666; border-radius:4px; background:#fff; }
-        #speechAnalyticsValue { width:100%; max-width:260px; padding:4px 6px; border:0px solid #666; border-radius:4px; font-size:0.9em; }
-        /* Make readonly numeric inputs visually non-editable but selectable */
+        .small-text { width:20ch; text-align:right; padding:10px 4px; box-sizing:border-box; border:1px solid #666; border-radius:4px; background:#fff; }
+        /* Make readonly inputs visually non-editable but selectable */
         .small-num[readonly] { background:#f9f9f9; font-size: medium; font-weight: bold;}
+        .small-text[readonly] { background:#f9f9f9; font-size: medium; font-weight: bold;}
     </style>
 </head>
 
@@ -98,10 +100,10 @@
                 <div class="kv"><label>Active headset:</label> <span id="activeHeadsetName">(none)</span></div>
                 <div class="kv"><label for="ambientNoiseValue">Ambient noise:</label> <input id="ambientNoiseValue" class="small-num" type="text" readonly placeholder="n/a" aria-label="Ambient noise level"></div>
                 <div class="kv"><label for="audioExposureValue">Audio exposure:</label> <input id="audioExposureValue" class="small-num" type="text" readonly placeholder="n/a" aria-label="Audio exposure"></div>
-                <div class="kv" style="flex-direction:column; align-items:stretch;">
-                    <label for="speechAnalyticsValue" style="min-width:0; font-weight:600;">Speech analytics:</label>
-                    <input id="speechAnalyticsValue" type="text" maxlength="30" placeholder="" aria-label="Speech analytics value">
-                </div>
+                <div class="kv"><label for="speechAnalyticsValue">Speech analytics:</label> <input id="speechAnalyticsValue" class="small-text" type="text" readonly maxlength="30" placeholder="n/a" aria-label="Speech analytics value"></div>
+                 <div class="kv"><label for="muteStateValue">Microphone mute state:</label> <input id="muteStateValue" class="small-text" type="text" readonly maxlength="30" placeholder="n/a" aria-label="Mute state value"></div>
+                   
+                
             </div>
         </div>
     </div>

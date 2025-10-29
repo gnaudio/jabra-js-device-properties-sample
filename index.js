@@ -4,10 +4,7 @@ import {
   RequestedBrowserTransport,
   TransportContext,
   LogLevel,
-  EasyCallControlFactory,
 } from '@gnaudio/jabra-js';
-
-// import { bufferTime, observeOn, Subscription } from 'rxjs';
 
 import { ButtonInteraction, createDeviceController, ButtonId, Color, LedMode } from '@gnaudio/jabra-js-button-customization';
 
@@ -24,21 +21,19 @@ let propertyFactory;
 
 let propertiesModuleReady = false;
 
+// Global vars to hold speech analytics states
+let customerSpeaking = false;
+let agentSpeaking = false;
+let microphoneMuteState = false;
+
 // Output helper to write to the outputBox textarea
-function writeOutput(msg) {
+function writeOutput(...msg) {
   const box = document.getElementById('outputBox');
   if (box) {
-    box.value += msg + '\n';
+    box.value += msg.join(' ') + '\n';
     box.scrollTop = box.scrollHeight;
   }
 }
-// Patch console.log and console.error to also write to the outputBox
-console.log = (...args) => {
-  writeOutput(args.join(' '));
-};
-console.error = (...args) => {
-  writeOutput('ERROR: ' + args.join(' '));
-};
 
 // For browser apps, you should always use CHROME_EXTENSION_WITH_WEB_HID_FALLBACK for transport. 
 /** @type {import('@gnaudio/jabra-js').IConfig} */
@@ -69,14 +64,14 @@ const jabraSdk = await init(config);
 // (...) setup device added/removed events (see below)
 
 if (jabraSdk.transportContext === TransportContext.WEB_HID) {
-  console.log("Jabra SDK initialized using WebHID transport. Properties will only work on devices that support WebHID fully such as Jabra Engage 40, 50, 50 II. If you need to use properties with other devices, try using the Chrome Extension transport instead.");
+  writeOutput("Jabra SDK initialized using WebHID transport. Properties will only work on devices that support WebHID fully such as Jabra Engage 40, 50, 50 II. If you need to use properties with other devices, try using the Chrome Extension transport instead.");
 } else {
-  console.log("Jabra SDK initialized using Chrome Extension transport. Properties should work on all supported devices.");
+  writeOutput("Jabra SDK initialized using Chrome Extension transport. Properties should work on all supported devices.");
 }
 
 // Subscribe to Jabra devices being attached/detected by the SDK
 jabraSdk.deviceAdded.subscribe(async (/**@type {import('@gnaudio/jabra-js').IDevice} */ device) => {
-  console.log(`Device attached/detected: ${device.name} (Product ID: ${device.productId}, Serial #: ${device.serialNumber})`);
+  writeOutput(`Device attached/detected: ${device.name} (Product ID: ${device.productId}, Serial #: ${device.serialNumber})`);
 
   // Update active headset name field
   setActiveHeadsetName(device.name);
@@ -90,37 +85,15 @@ jabraSdk.deviceAdded.subscribe(async (/**@type {import('@gnaudio/jabra-js').IDev
   if ((device.name == "Jabra Engage 40") || (device.name == "Jabra Engage 50") || (device.name == "Jabra Engage 50 II")) {
     // Try to customize the 3-dot button if controller is connected. 
     if (customizeButton(device)) {
-      console.log("3-dot button customization set up for device " + device.name +
+      writeOutput("3-dot button customization set up for device " + device.name +
         " - tap the button to see events in the log");
     } else {
-      console.log("Failed to set up 3-dot button customization for device " + device.name);
+      writeOutput("Failed to set up 3-dot button customization for device " + device.name);
     }
 
     // Subscribe to audio telemetry properties
     observeAudioTelemetry(device);
-
-
   };
-
-
-  /*
-  
-   
-  
-    const propertyNames = [
-      "firmwareVersion",
-      "smartRingerEnabled",
-      "backgroundNoiseLevel",
-      "microphoneMuteState"
-    ];
-  
-    const propertyMap = await jabraSdkPropsFactory.createProperties(device, propertyNames)
-    //Read properties from device
-    const firmwareVersionProperty = propertyMap.get("firmwareVersion");
-    const firmwareVersion = await firmwareVersionProperty.get();
-    console.log("Firmware version: " + firmwareVersion);
-  
-    */
 });
 
 async function observeAudioTelemetry(device) {
@@ -136,7 +109,7 @@ async function observeAudioTelemetry(device) {
     ];
     const propertyMap = await propertyFactory.createProperties(device, propertyNames);
     if (propertyMap) {
-      console.log("Property map created for device " + device.name);
+      writeOutput("Property map created for device " + device.name);
       // Observe properties from device
       const backgroundNoiseLevelProperty = propertyMap.get("backgroundNoiseLevel");
       const audioExposureProperty = propertyMap.get("audioExposure");
@@ -144,8 +117,8 @@ async function observeAudioTelemetry(device) {
       const agentSpeakingProperty = propertyMap.get("agentSpeaking");
       const microphoneMuteStateProperty = propertyMap.get("microphoneMuteState");
       // Generic subscriptions (only attach if property exists)
-      attachPropertySubscription(device, 'backgroundNoiseLevel', backgroundNoiseLevelProperty, (v) => setAmbientNoise(v));
-      attachPropertySubscription(device, 'audioExposure', audioExposureProperty, (v) => setAudioExposure(v));
+      attachPropertySubscription(device, 'backgroundNoiseLevel', backgroundNoiseLevelProperty);
+      attachPropertySubscription(device, 'audioExposure', audioExposureProperty);
       attachPropertySubscription(device, 'customerSpeaking', customerSpeakingProperty);
       attachPropertySubscription(device, 'agentSpeaking', agentSpeakingProperty);
       attachPropertySubscription(device, 'microphoneMuteState', microphoneMuteStateProperty);
@@ -161,18 +134,30 @@ async function observeAudioTelemetry(device) {
  * @param {import('@gnaudio/jabra-js').IDevice} device
  * @param {string} propertyName
  * @param {*} propertyObj - Property object returned from factory (must have watch())
- * @param {(value: T) => void} [onValue] - Optional callback for each value.
  */
-function attachPropertySubscription(device, propertyName, propertyObj, onValue) {
-  if (!propertyObj || typeof propertyObj.watch !== 'function') {
-    console.warn(`${propertyName} property missing watch()`);
-    return;
-  }
+function attachPropertySubscription(device, propertyName, propertyObj) {
   propertyObj.watch().subscribe({
     next(value) {
-      console.log(`${propertyName} for ${device.name}:`, value);
-      if (onValue) {
-        try { onValue(value); } catch (e) { console.warn(`onValue handler threw for ${propertyName}`, e); }
+      writeOutput(`${propertyName} for ${device.name}:`, value);
+      switch (propertyName) {
+        case 'backgroundNoiseLevel':
+          setAmbientNoise(value);
+          break;
+        case 'audioExposure':
+          setAudioExposure(value);
+          break;
+        case 'customerSpeaking':
+          customerSpeaking = value;
+          updateSpeechAnalytics();  
+          break;
+        case 'agentSpeaking':
+          agentSpeaking = value;
+          updateSpeechAnalytics();
+          break;
+        case 'microphoneMuteState':
+          microphoneMuteState = value;
+          updateSpeechAnalytics();
+          break;
       }
     },
     error(e) {
@@ -183,9 +168,32 @@ function attachPropertySubscription(device, propertyName, propertyObj, onValue) 
       }
     },
     complete() {
-      console.log(`Completed observing ${propertyName} for ${device.name}`);
+      writeOutput(`Completed observing ${propertyName} for ${device.name}`);
     }
   });
+}
+
+function updateSpeechAnalytics() {
+  if (customerSpeaking) {
+    if (agentSpeaking) {
+      setSpeechAnalytics("Crosstalk", "red");
+    } else {
+      setSpeechAnalytics("Customer speaking", "black");
+    }
+  } else if (agentSpeaking) {
+    setSpeechAnalytics("Agent speaking", "black");
+  } else {
+    setSpeechAnalytics("Silence", "orange");
+  }
+  if (microphoneMuteState) {
+    if (agentSpeaking) {
+      setMuteState("Muted while speaking", "red");
+    } else {
+      setMuteState("Muted", "orange");
+    }
+  } else {
+    setMuteState("Unmuted", "green");
+  }
 }
 
 async function readCommonProperties(device) {
@@ -198,11 +206,11 @@ async function readCommonProperties(device) {
     
     const propertyMap = await propertyFactory.createProperties(device, propertyNames);
     if (propertyMap) {
-      console.log("Property map created for device " + device.name);
+      writeOutput("Property map created for device " + device.name);
       //Read properties from device
       const firmwareVersionProperty = propertyMap.get("firmwareVersion");
       const firmwareVersion = await firmwareVersionProperty.get();
-      console.log("Firmware version for " + device.name + ": " + firmwareVersion);
+      writeOutput("Firmware version for " + device.name + ": " + firmwareVersion);
     }
   } catch (error) {
     // This commonly happens if you try to read properties from a device that does not support WebHID transport for properties. 
@@ -229,13 +237,13 @@ async function customizeButton(device) {
        */
       const observer = {
         next: () => {
-          console.log('Button tapped');
+          writeOutput('Button tapped');
         },
         error: (err) => {
           console.error('Error listening for button tap:', err);
         },
         complete: () => {
-          console.log('Stopped listening for button tap');
+          writeOutput('Stopped listening for button tap');
         }
       };
       threeDotButtonListener.subscribe(observer);
@@ -252,14 +260,11 @@ async function customizeButton(device) {
 
 const webHidButton = document.getElementById('webHidButton');
 webHidButton.addEventListener('click', async () => {
-  console.log('Adding Jabra device using WebHID');
+  writeOutput('Adding Jabra device using WebHID');
   await webHidPairing();
   // If user added a device, the deviceAdded and deviceList subscriptions 
   // will trigger and you should handle the device interaction there.
 });
-
-
-
 
 const colorSelector = document.getElementById('colorSelector');
 const ledModeSelector = document.getElementById('ledModeSelector');
@@ -296,7 +301,6 @@ function getLedModeEnum(modeValue) {
   }
 }
 
-
 function getColorValue() {
   if (colorSelector.value === 'custom' && customR && customG && customB) {
     // Clamp values to 0-255
@@ -319,8 +323,6 @@ function getColorValue() {
   }
 }
 
-
-
 // Set color or mode on dropdown change
 function updateThreeDotButtonLed() {
   if (threeDotButton && colorSelector && ledModeSelector) {
@@ -331,7 +333,7 @@ function updateThreeDotButtonLed() {
       return;
     } else {
       threeDotButton.setColor(color.colorEnum, modeEnum);
-      console.log(`Set 3-dot button LED to ${colorSelector.value}, mode: ${ledModeSelector.value}`);
+      writeOutput(`Set 3-dot button LED to ${colorSelector.value}, mode: ${ledModeSelector.value}`);
     }
   }
 }
@@ -354,12 +356,10 @@ if (applyCustomColorBtn) {
       const color = getColorValue();
       const modeEnum = getLedModeEnum(ledModeSelector.value);
       threeDotButton.setColor(new Color(color.r, color.g, color.b), modeEnum);
-      console.log(`Set 3-dot button LED to custom RGB (${color.r},${color.g},${color.b}), mode: ${ledModeSelector.value}`);
+      writeOutput(`Set 3-dot button LED to custom RGB (${color.r},${color.g},${color.b}), mode: ${ledModeSelector.value}`);
     }
   });
 }
-
-
 
 // Set color and mode on page load/device attach
 async function setInitialThreeDotColor() {
@@ -368,16 +368,16 @@ async function setInitialThreeDotColor() {
     const modeEnum = getLedModeEnum(ledModeSelector.value);
     if (color.isCustom) {
       await threeDotButton.setColor({ r: color.r, g: color.g, b: color.b }, modeEnum);
-      console.log(`Set 3-dot button LED to custom RGB (${color.r},${color.g},${color.b}), mode: ${ledModeSelector.value} (initial)`);
+      writeOutput(`Set 3-dot button LED to custom RGB (${color.r},${color.g},${color.b}), mode: ${ledModeSelector.value} (initial)`);
     } else {
       await threeDotButton.setColor(color.colorEnum, modeEnum);
-      console.log(`Set 3-dot button LED to ${colorSelector.value}, mode: ${ledModeSelector.value} (initial)`);
+      writeOutput(`Set 3-dot button LED to ${colorSelector.value}, mode: ${ledModeSelector.value} (initial)`);
     }
   }
 }
 
 async function loadPropertiesDefinition() {
-  console.log("Loading properties definition...");
+  writeOutput("Loading properties definition...");
   return (
     await fetch(
       "node_modules/@gnaudio/jabra-properties-definition/properties.json"
@@ -422,23 +422,18 @@ function setAudioExposure(value) {
 /**
  * Set speech analytics text.
  * @param {string} text
- * @param {Color} color
+ * @param {string} color
  */
 function setSpeechAnalytics(text, color) {
   const el = document.getElementById('speechAnalyticsValue');
   el.value = (text);
   el.style.color = color;
+  
 }
 
-// Expose helpers globally for easy testing in console
-window.jabraDemo = {
-  setActiveHeadsetName,
-  setAmbientNoise,
-  setAudioExposure,
-  setSpeechAnalytics
-};
-
-console.log('Telemetry UI helpers ready: jabraDemo.setAmbientNoise(n), setAudioExposure(n), setSpeechAnalytics(text, quality)');
-
-
+function setMuteState(text, color) {
+  const el = document.getElementById('muteStateValue');
+  el.value = (text);
+  el.style.color = color;
+}
 
