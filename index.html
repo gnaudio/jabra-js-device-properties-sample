@@ -10,7 +10,7 @@
         input,
         select,
         h1,
-        h2,
+        h2
         h3,
         h4,
         h5,
@@ -30,7 +30,7 @@
             font-family: Consolas, monospace !important;
             font-size: 0.8em;
             width: 100%;
-            height: 40vh;
+            height: 45vh;
             resize: vertical;
         }
 
@@ -48,8 +48,8 @@
         .info-panel h2 { margin:0 0 12px 0; font-size:1.1em; }
         .kv { display:flex; align-items:center; margin-bottom:12px; }
         .kv label { min-width:180px; font-weight:600; }
-        .small-num { width:4ch; text-align:right; padding:10px 4px; box-sizing:border-box; border:1px solid #666; border-radius:4px; background:#fff; }
-        .small-text { width:20ch; text-align:right; padding:10px 4px; box-sizing:border-box; border:1px solid #666; border-radius:4px; background:#fff; }
+        .small-num { width:4ch; text-align:right; padding:4px 4px; box-sizing:border-box; border:1px solid #666; border-radius:4px; background:#fff; }
+        .small-text { width:20ch; text-align:right; padding:4px 4px; box-sizing:border-box; border:1px solid #666; border-radius:4px; background:#fff; }
         /* Make readonly inputs visually non-editable but selectable */
         .small-num[readonly] { background:#f9f9f9; font-size: medium; font-weight: bold;}
         .small-text[readonly] { background:#f9f9f9; font-size: medium; font-weight: bold;}
@@ -60,14 +60,16 @@
     <h1><img src="jabra-logo.svg" alt="Jabra Logo" width="80">  Jabra JavaScript SDK properties and button customization demo</h1>
     <div class="layout">
         <div class="left-pane">
+            <div class="info-panel">
             <!-- Output/log area -->
             <textarea id="outputBox" readonly></textarea>
             <br>
-            <button id="webHidButton">Add Jabra headset</button>
+            <button id="webHidButton" disabled>Add Jabra headset (WebHID only)</button>
             <br><br>
             <!-- Existing customization controls remain on left -->
+             <h2>Three-dot button customization</h2>
             <label for="colorSelector">Three-dot button color:</label>
-            <select id="colorSelector">
+            <select id="colorSelector" disabled>
                 <option value="blue" selected>Blue</option>
                 <option value="red">Red</option>
                 <option value="green">Green</option>
@@ -86,28 +88,31 @@
             </span>
             <br><br>
             <label for="ledModeSelector">LED mode:</label>
-            <select id="ledModeSelector">
+            <select id="ledModeSelector" disabled>
                 <option value="on" selected>on</option>
                 <option value="slowPulse">slowPulse</option>
                 <option value="fastPulse">fastPulse</option>
                 <option value="off">off</option>
             </select>
+            <h4 style="font-weight: 100;font-style: italic;">Only enabled for Jabra Engage 40, 50 and 50 II headsets. Tap three dot button on headset controller to see button event.</h4>
+            </div>
         </div>
         <div class="right-pane">
             <!-- Telemetry / status panel -->
             <div class="info-panel">
-                <h2>Headset & Telemetry</h2>
+                <h1>Headset & Telemetry</h1>
+                <br>
                 <div class="kv"><label>Active headset:</label> <span id="activeHeadsetName">(none)</span></div>
                 <div class="kv"><label for="ambientNoiseValue">Ambient noise:</label> <input id="ambientNoiseValue" class="small-num" type="text" readonly placeholder="n/a" aria-label="Ambient noise level"></div>
                 <div class="kv"><label for="audioExposureValue">Audio exposure:</label> <input id="audioExposureValue" class="small-num" type="text" readonly placeholder="n/a" aria-label="Audio exposure"></div>
                 <div class="kv"><label for="speechAnalyticsValue">Speech analytics:</label> <input id="speechAnalyticsValue" class="small-text" type="text" readonly maxlength="30" placeholder="n/a" aria-label="Speech analytics value"></div>
-                 <div class="kv"><label for="muteStateValue">Microphone mute state:</label> <input id="muteStateValue" class="small-text" type="text" readonly maxlength="30" placeholder="n/a" aria-label="Mute state value"></div>
-                   
-                
+                <div class="kv"><label for="muteStateValue">Microphone mute state:</label> <input id="muteStateValue" class="small-text" type="text" readonly maxlength="30" placeholder="n/a" aria-label="Mute state value"></div>
+                <h4 style="font-weight: 100;font-style: italic;">Only enabled for Jabra Engage 40, 50 and 50 II headsets. To see values the microphone must be active, as for example when in a meeting. If using Windows, you can click to open Sound Settings and keep it open with the proper microphone selected to see audio telemetry.</h4>
+                <h4 style="font-weight: 100;font-style: italic;">Try out: Speaking, letting far end speak (play sound to the headset), speak over the far end (cross talk), speaking while microphone is muted.</h4>
+                <button id="soundSettings" onclick="location.href='ms-settings:sound';">Open Windows Sound Settings</button
             </div>
         </div>
     </div>
     <script type="module" src="./index.js"></script>
 </body>
-
 </html>

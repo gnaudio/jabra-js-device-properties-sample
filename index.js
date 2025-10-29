@@ -1,14 +1,5 @@
-import {
-  init,
-  webHidPairing,
-  RequestedBrowserTransport,
-  TransportContext,
-  LogLevel,
-} from '@gnaudio/jabra-js';
-
+import { init, webHidPairing, RequestedBrowserTransport, TransportContext, LogLevel } from '@gnaudio/jabra-js';
 import { ButtonInteraction, createDeviceController, ButtonId, Color, LedMode } from '@gnaudio/jabra-js-button-customization';
-
-// import relevant modules from jabra-js-properties
 import { PropertyModule } from '@gnaudio/jabra-js-properties';
 
 // 3-dot button
@@ -65,6 +56,15 @@ const jabraSdk = await init(config);
 
 if (jabraSdk.transportContext === TransportContext.WEB_HID) {
   writeOutput("Jabra SDK initialized using WebHID transport. Properties will only work on devices that support WebHID fully such as Jabra Engage 40, 50, 50 II. If you need to use properties with other devices, try using the Chrome Extension transport instead.");
+  writeOutput("For first time use, please click the 'Add Jabra headset' button to add a device using WebHID.");
+  const webHidButton = document.getElementById('webHidButton');
+  webHidButton.disabled = false;
+  webHidButton.addEventListener('click', async () => {
+  writeOutput('Adding Jabra device using WebHID');
+  await webHidPairing();
+  // If user added a device, the deviceAdded and deviceList subscriptions 
+  // will trigger and you should handle the device interaction there.
+});
 } else {
   writeOutput("Jabra SDK initialized using Chrome Extension transport. Properties should work on all supported devices.");
 }
@@ -83,6 +83,10 @@ jabraSdk.deviceAdded.subscribe(async (/**@type {import('@gnaudio/jabra-js').IDev
   // Currently supported on Jabra Engage 40/50/50 II only
   // For same device models, subscribe to relevant audio telemetry events as well.   
   if ((device.name == "Jabra Engage 40") || (device.name == "Jabra Engage 50") || (device.name == "Jabra Engage 50 II")) {
+    // Enable dropdowns for LED customization
+    if (colorSelector) colorSelector.disabled = false;
+    if (ledModeSelector) ledModeSelector.disabled = false;
+    
     // Try to customize the 3-dot button if controller is connected. 
     if (customizeButton(device)) {
       writeOutput("3-dot button customization set up for device " + device.name +
@@ -93,6 +97,9 @@ jabraSdk.deviceAdded.subscribe(async (/**@type {import('@gnaudio/jabra-js').IDev
 
     // Subscribe to audio telemetry properties
     observeAudioTelemetry(device);
+
+    // Initial UI setup for telemetry values
+    updateSpeechAnalytics();
   };
 });
 
@@ -214,7 +221,8 @@ async function readCommonProperties(device) {
     }
   } catch (error) {
     // This commonly happens if you try to read properties from a device that does not support WebHID transport for properties. 
-    console.error("Error reading properties for device " + device.name + ": " + error);
+    writeOutput("Error reading properties for device " + device.name + ": " + error);
+    writeOutput("This commonly happens if you try to read properties from a device that does not support WebHID transport for properties.");
   }
 }
 
@@ -258,13 +266,7 @@ async function customizeButton(device) {
   }
 }
 
-const webHidButton = document.getElementById('webHidButton');
-webHidButton.addEventListener('click', async () => {
-  writeOutput('Adding Jabra device using WebHID');
-  await webHidPairing();
-  // If user added a device, the deviceAdded and deviceList subscriptions 
-  // will trigger and you should handle the device interaction there.
-});
+
 
 const colorSelector = document.getElementById('colorSelector');
 const ledModeSelector = document.getElementById('ledModeSelector');
