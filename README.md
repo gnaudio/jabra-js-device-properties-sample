@@ -1,12 +1,12 @@
-# Jabra JS SDK4 Properties & Remote MMI Playground
+# Jabra JS SDK4 Properties & Button Customization demo
 
-This project is a browser-based playground for experimenting with the Jabra JavaScript SDK v4, including device property access and remote MMI (button/LED) customization.
+This project is a browser-based demo showing how to work with Properties and Button Customization in the Jabra JS SDK. 
 
 ## Features
 - Connect to Jabra devices using WebHID
-- View and set device properties (firmware version, mute state, etc.)
+- Read and set device properties (firmware version, sidetone on/off)
+- Subscribe to headset telemetry events (background noise, speech analytics, audio exposure)
 - Customize the 3-dot button LED color and mode (including custom RGB)
-- Live output log in the browser
 
 ## Getting Started
 
@@ -22,7 +22,7 @@ This project is a browser-based playground for experimenting with the Jabra Java
 	Go to the URL shown in the terminal (usually http://localhost:5173)
 
 ## Usage
-- Click "Add Jabra headset" to connect a device.
+- Click "Grant WebHID permission to headset" to connect a device if using WebHID (no installed components needed).
 - Use the dropdowns to set the 3-dot button LED color and mode.
 - For custom colors, select "Custom (RGB)", enter values (0–255), and click Apply.
 - Output and device logs appear in the on-page textbox.

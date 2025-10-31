@@ -60,11 +60,11 @@ if (jabraSdk.transportContext === TransportContext.WEB_HID) {
   const webHidButton = document.getElementById('webHidButton');
   webHidButton.disabled = false;
   webHidButton.addEventListener('click', async () => {
-  writeOutput('Adding Jabra device using WebHID');
-  await webHidPairing();
-  // If user added a device, the deviceAdded and deviceList subscriptions 
-  // will trigger and you should handle the device interaction there.
-});
+    writeOutput('Adding Jabra device using WebHID');
+    await webHidPairing();
+    // If user added a device, the deviceAdded and deviceList subscriptions 
+    // will trigger and you should handle the device interaction there.
+  });
 } else {
   writeOutput("Jabra SDK initialized using Chrome Extension transport. Properties should work on all supported devices.");
 }
@@ -86,9 +86,10 @@ jabraSdk.deviceAdded.subscribe(async (/**@type {import('@gnaudio/jabra-js').IDev
     // Enable dropdowns for LED customization
     if (colorSelector) colorSelector.disabled = false;
     if (ledModeSelector) ledModeSelector.disabled = false;
+
+    // Customize 3-dot button
     
-    // Try to customize the 3-dot button if controller is connected. 
-    if (customizeButton(device)) {
+    if (await customizeButton(device)) {
       writeOutput("3-dot button customization set up for device " + device.name +
         " - tap the button to see events in the log");
     } else {
@@ -96,17 +97,22 @@ jabraSdk.deviceAdded.subscribe(async (/**@type {import('@gnaudio/jabra-js').IDev
     }
 
     // Subscribe to audio telemetry properties
-    observeAudioTelemetry(device);
+    await observeAudioTelemetry(device);
 
     // Initial UI setup for telemetry values
     updateSpeechAnalytics();
-  };
+
+    // Read initial sideToneEnabled property state and update UI
+    await setupSideToneDropdown(device);
+  
+  }
 });
 
 async function observeAudioTelemetry(device) {
   try {
     // Initialize the SDK's properties module if needed
     if (!propertiesModuleReady) { await initPropertyModule(); }
+    // List the properties to use
     const propertyNames = [
       "backgroundNoiseLevel",
       "audioExposure",
@@ -116,19 +122,19 @@ async function observeAudioTelemetry(device) {
     ];
     const propertyMap = await propertyFactory.createProperties(device, propertyNames);
     if (propertyMap) {
-      writeOutput("Property map created for device " + device.name);
-      // Observe properties from device
+      writeOutput("Property map for audio telemetry properties created for device " + device.name);
+      // Create Properties from device
       const backgroundNoiseLevelProperty = propertyMap.get("backgroundNoiseLevel");
       const audioExposureProperty = propertyMap.get("audioExposure");
       const customerSpeakingProperty = propertyMap.get("customerSpeaking");
       const agentSpeakingProperty = propertyMap.get("agentSpeaking");
       const microphoneMuteStateProperty = propertyMap.get("microphoneMuteState");
-      // Generic subscriptions (only attach if property exists)
-      attachPropertySubscription(device, 'backgroundNoiseLevel', backgroundNoiseLevelProperty);
-      attachPropertySubscription(device, 'audioExposure', audioExposureProperty);
-      attachPropertySubscription(device, 'customerSpeaking', customerSpeakingProperty);
-      attachPropertySubscription(device, 'agentSpeaking', agentSpeakingProperty);
-      attachPropertySubscription(device, 'microphoneMuteState', microphoneMuteStateProperty);
+      // Subscribe to properties
+      attachPropertySubscription(device, backgroundNoiseLevelProperty);
+      attachPropertySubscription(device, audioExposureProperty);
+      attachPropertySubscription(device, customerSpeakingProperty);
+      attachPropertySubscription(device, agentSpeakingProperty);
+      attachPropertySubscription(device, microphoneMuteStateProperty);
     }
   } catch (err) {
     console.error('Error observing audio telemetry:', err);
@@ -139,14 +145,13 @@ async function observeAudioTelemetry(device) {
  * Generic property subscription helper.
  * @template T
  * @param {import('@gnaudio/jabra-js').IDevice} device
- * @param {string} propertyName
  * @param {*} propertyObj - Property object returned from factory (must have watch())
  */
-function attachPropertySubscription(device, propertyName, propertyObj) {
+function attachPropertySubscription(device, propertyObj) {
   propertyObj.watch().subscribe({
     next(value) {
-      writeOutput(`${propertyName} for ${device.name}:`, value);
-      switch (propertyName) {
+      writeOutput(`${propertyObj.name} for ${device.name}:`, value);
+      switch (propertyObj.name) {
         case 'backgroundNoiseLevel':
           setAmbientNoise(value);
           break;
@@ -155,7 +160,7 @@ function attachPropertySubscription(device, propertyName, propertyObj) {
           break;
         case 'customerSpeaking':
           customerSpeaking = value;
-          updateSpeechAnalytics();  
+          updateSpeechAnalytics();
           break;
         case 'agentSpeaking':
           agentSpeaking = value;
@@ -194,7 +199,7 @@ function updateSpeechAnalytics() {
   }
   if (microphoneMuteState) {
     if (agentSpeaking) {
-      setMuteState("Muted while speaking", "red");
+      setMuteState("Speaking while muted", "red");
     } else {
       setMuteState("Muted", "orange");
     }
@@ -210,7 +215,7 @@ async function readCommonProperties(device) {
     const propertyNames = [
       "firmwareVersion"
     ];
-    
+
     const propertyMap = await propertyFactory.createProperties(device, propertyNames);
     if (propertyMap) {
       writeOutput("Property map created for device " + device.name);
@@ -218,6 +223,40 @@ async function readCommonProperties(device) {
       const firmwareVersionProperty = propertyMap.get("firmwareVersion");
       const firmwareVersion = await firmwareVersionProperty.get();
       writeOutput("Firmware version for " + device.name + ": " + firmwareVersion);
+    }
+  } catch (error) {
+    // This commonly happens if you try to read properties from a device that does not support WebHID transport for properties. 
+    writeOutput("Error reading properties for device " + device.name + ": " + error);
+    writeOutput("This commonly happens if you try to read properties from a device that does not support WebHID transport for properties.");
+  }
+}
+
+async function setupSideToneDropdown(device) {
+  try {
+    // Initialize the SDK's properties module if needed
+    if (!propertiesModuleReady) { await initPropertyModule(); }
+    const propertyNames = [
+      "sidetoneEnabled"
+    ];
+
+    const propertyMap = await propertyFactory.createProperties(device, propertyNames);
+    if (propertyMap) {
+      writeOutput("Property map created for device " + device.name);
+      //Read properties from device
+      const sidetoneEnabledProperty = propertyMap.get("sidetoneEnabled");
+      const sidetoneEnabled = await sidetoneEnabledProperty.get();
+      writeOutput("Side Tone enabled for " + device.name + ": " + sidetoneEnabled);
+      if (sideToneSelector) {
+        sideToneSelector.value = sidetoneEnabled;
+        sideToneSelector.disabled = false;
+        // Set up change listener
+        sideToneSelector.addEventListener('change', async () => {
+          const newValueString = sideToneSelector.value;
+          let newValue = newValueString=="true"; 
+          await propertyMap.startTransaction().set(sidetoneEnabledProperty.name, newValue).commit();
+          writeOutput("Set sidetoneEnabled to " + newValue + " for " + device.name);
+        });
+      }
     }
   } catch (error) {
     // This commonly happens if you try to read properties from a device that does not support WebHID transport for properties. 
@@ -276,6 +315,8 @@ const customR = document.getElementById('customR');
 const customG = document.getElementById('customG');
 const customB = document.getElementById('customB');
 const applyCustomColorBtn = document.getElementById('applyCustomColorBtn');
+
+const sideToneSelector = document.getElementById('sideToneSelector');
 
 // Show/hide RGB inputs based on color selection
 if (colorSelector && customColorInputs) {
@@ -430,7 +471,7 @@ function setSpeechAnalytics(text, color) {
   const el = document.getElementById('speechAnalyticsValue');
   el.value = (text);
   el.style.color = color;
-  
+
 }
 
 function setMuteState(text, color) {

@@ -1,7 +1,7 @@
 {
   "dependencies": {
-    "@gnaudio/jabra-js": "4.3.5-alpha.5",
-    "@gnaudio/jabra-js-button-customization": "^1.0.2-alpha.0",
+    "@gnaudio/jabra-js": "4.3.5",
+    "@gnaudio/jabra-js-button-customization": "^1.0.3",
     "@gnaudio/jabra-js-properties": "^1.0.3",
     "@gnaudio/jabra-properties-definition": "^12.1.2"
   },
