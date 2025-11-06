@@ -1,0 +1,82 @@
+body {
+  font-family: Arial, sans-serif;
+}
+
+textarea#outputBox {
+  font-family: Consolas, monospace;
+  font-size: 0.8em;
+  width: 100%;
+  height: 45vh;
+}
+
+.layout {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.left-pane,
+.right-pane {
+  flex: 1 1 50%;
+  max-width: 50%;
+  min-width: 400px;
+  min-width: 400px;
+}
+
+@media (max-width: 800px) {
+  .layout {
+    flex-direction: column;
+  }
+
+  .left-pane,
+  .right-pane {
+    max-width: 100%;
+  }
+}
+
+.info-panel {
+  border: 1px solid #ccc;
+  padding: 16px;
+  border-radius: 8px;
+  background: #fafafa;
+  font-size: 0.95em;
+}
+
+.kv {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.kv label {
+  min-width: 180px;
+  font-weight: 600;
+}
+
+.small-num {
+  width: 4ch;
+  text-align: right;
+  padding: 4px 4px;
+  box-sizing: border-box;
+  border: 1px solid #666;
+  border-radius: 4px;
+  background: #fff;
+}
+
+.small-text {
+  width: 20ch;
+  text-align: right;
+  padding: 4px 4px;
+  box-sizing: border-box;
+  border: 1px solid #666;
+  border-radius: 4px;
+  background: #fff;
+}
+
+/* Make readonly inputs visually non-editable but selectable */
+.small-num[readonly],
+.small-text[readonly] {
+  background: transparent;
+  font-size: 1.05em;
+  font-weight: bold;
+}
