@@ -2,6 +2,44 @@ body {
   font-family: Arial, sans-serif;
 }
 
+h2 {
+  font-size: 1.8em;
+  margin-top: 0px;
+}
+
+h1 img {
+  width: 80px;
+}
+
+.hidden {
+  display: none;
+}
+
+.subtle {
+  color: #666;
+  font-size: 0.95em;
+}
+
+.comment {
+  font-style: italic;
+}
+
+.form-section {
+  margin-bottom: 16px;
+}
+
+th {
+  text-align: left;
+  height: 2rem;
+  padding-right: 1rem;
+}
+
+input,
+select {
+  padding: 0.1em;
+  font-size: 1.1em;
+}
+
 textarea#outputBox {
   font-family: Consolas, monospace;
   font-size: 0.8em;
@@ -40,17 +78,7 @@ textarea#outputBox {
   border-radius: 8px;
   background: #fafafa;
   font-size: 0.95em;
-}
-
-.kv {
-  display: flex;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.kv label {
-  min-width: 180px;
-  font-weight: 600;
+  margin-top: 24px;
 }
 
 .small-num {

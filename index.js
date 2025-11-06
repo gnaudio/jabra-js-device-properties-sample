@@ -88,7 +88,7 @@ jabraSdk.deviceAdded.subscribe(async (/**@type {import('@gnaudio/jabra-js').IDev
     if (ledModeSelector) ledModeSelector.disabled = false;
 
     // Customize 3-dot button
-    
+
     if (await customizeButton(device)) {
       writeOutput("3-dot button customization set up for device " + device.name +
         " - tap the button to see events in the log");
@@ -104,7 +104,7 @@ jabraSdk.deviceAdded.subscribe(async (/**@type {import('@gnaudio/jabra-js').IDev
 
     // Read initial sideToneEnabled property state and update UI
     await setupSideToneDropdown(device);
-  
+
   }
 });
 
@@ -252,7 +252,7 @@ async function setupSideToneDropdown(device) {
         // Set up change listener
         sideToneSelector.addEventListener('change', async () => {
           const newValueString = sideToneSelector.value;
-          let newValue = newValueString=="true"; 
+          let newValue = newValueString == "true";
           await propertyMap.startTransaction().set(sidetoneEnabledProperty.name, newValue).commit();
           writeOutput("Set sidetoneEnabled to " + newValue + " for " + device.name);
         });
@@ -322,9 +322,9 @@ const sideToneSelector = document.getElementById('sideToneSelector');
 if (colorSelector && customColorInputs) {
   colorSelector.addEventListener('change', () => {
     if (colorSelector.value === 'custom') {
-      customColorInputs.style.display = '';
+      customColorInputs.classList.remove('hidden');
     } else {
-      customColorInputs.style.display = 'none';
+      customColorInputs.classList.add('hidden');
     }
   });
 }
