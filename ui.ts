@@ -1,0 +1,232 @@
+import { Color, LedMode } from "@gnaudio/jabra-js-button-customization";
+
+export function writeOutput(...msg: any[]) {
+  const box = document.getElementById('outputBox') as HTMLTextAreaElement;
+  if (box) {
+    box.value += msg.join(' ') + '\n';
+    box.scrollTop = box.scrollHeight;
+  }
+}
+
+export function setActiveHeadsetName(name: string | undefined) {
+  const el = document.getElementById('activeHeadsetName') as HTMLElement;
+  el.textContent = (name) ? name : '(none)';
+}
+
+export function setAmbientNoise(value: number | undefined) {
+  const el = document.getElementById('ambientNoiseValue') as HTMLInputElement;
+  el.value = (value) ? value.toString() : 'n/a';
+  let color = 'gray';
+  if (value) {
+    color = 'green'
+    if (value > 65) { color = 'orange'; };
+    if (value > 80) { color = 'red'; };
+  }
+  el.style.color = color;
+}
+
+export function setAudioExposure(value: number | undefined) {
+  const el = document.getElementById('audioExposureValue') as HTMLInputElement;
+  el.value = (value) ? value.toString() : 'n/a';
+  let color = 'gray';
+  if (value) {
+    color = 'green'
+    if (value > 65) { color = 'orange'; }
+    if (value > 80) { color = 'red'; }
+  }
+  el.style.color = color;
+}
+
+export function setSpeechAnalytics(text?: string, color?: string) {
+  const el = document.getElementById('speechAnalyticsValue') as HTMLInputElement;
+  el.value = (text) ? text : 'n/a';
+  el.style.color = (text && color) ? color : 'gray';
+
+}
+
+export function setMuteState(text?: string, color?: string) {
+  const el = document.getElementById('muteStateValue') as HTMLInputElement;
+  el.value = (text) ? text : 'n/a';
+  el.style.color = (text && color) ? color : 'gray';
+}
+
+export function setSideTone(value?: string, handleChange?: (value: string) => void) {
+  const el = document.getElementById('sideToneSelector') as HTMLSelectElement;
+  if (value === undefined) {
+    el.disabled = true;
+    el.value = '';
+  }
+  else {
+    el.disabled = false;
+    el.value = value
+  }
+
+  if (handleChange) {
+    el.addEventListener('change', (event) => handleChange((event.target as HTMLSelectElement).value));
+  }
+}
+
+export function enableWebHidPermissionButton(handleDeviceAdded: () => void) {
+  const webHidButton = document.getElementById('webHidButton') as HTMLButtonElement;
+
+  webHidButton.disabled = false;
+  webHidButton.addEventListener('click', handleDeviceAdded);
+}
+
+export function enableThreeDotButtonControls(handleChange: (color: Color, mode: LedMode) => void) {
+  const elColor = document.getElementById('threeDotColorSelector') as HTMLSelectElement;
+  const elMode = document.getElementById('threeDotModeSelector') as HTMLSelectElement;
+  const elCustomColorInputs = document.getElementById('customColorInputs') as HTMLDivElement;
+  const elCustomR = document.getElementById('customR') as HTMLInputElement;
+  const elCustomG = document.getElementById('customG') as HTMLInputElement;
+  const elCustomB = document.getElementById('customB') as HTMLInputElement;
+  const elApplyCustomColorBtn = document.getElementById('applyCustomColorBtn') as HTMLButtonElement;
+
+  elColor.disabled = false;
+  elMode.disabled = false;
+
+  elColor.addEventListener('change', notifyChange);
+  elMode.addEventListener('change', notifyChange);
+  elApplyCustomColorBtn.addEventListener('click', notifyChange);
+
+  function notifyChange() {
+    let mode = stringToLedMode(elMode.value);
+    let color: Color;
+
+    if (elColor.value == 'custom') {
+      elCustomColorInputs.classList.remove('hidden');
+      color = new Color(
+        parseInt(elCustomR.value) || 0,
+        parseInt(elCustomG.value) || 0,
+        parseInt(elCustomB.value) || 0
+      );
+    }
+    else {
+      elCustomColorInputs.classList.add('hidden');
+      color = stringToColor(elColor.value);
+    }
+
+    handleChange(color, mode)
+  }
+}
+
+export function setThreeDotColorAndMode(color: Color, mode: LedMode) {
+  const elColor = document.getElementById('threeDotColorSelector') as HTMLSelectElement;
+  const elMode = document.getElementById('threeDotModeSelector') as HTMLSelectElement;
+
+  if (color !== undefined && mode !== undefined) {
+    elColor.disabled = false;
+    elMode.disabled = false;
+    elColor.value = colorToString(color);
+    elMode.value = mode.name
+  }
+  else {
+    elColor.disabled = true;
+    elMode.disabled = true;
+  }
+}
+
+export function updateSpeechAnalytics(speechAnalyticsState: { customerSpeaking: boolean; agentSpeaking: boolean; microphoneMuteState: boolean; }) {
+  if (speechAnalyticsState.customerSpeaking) {
+    if (speechAnalyticsState.agentSpeaking) {
+      setSpeechAnalytics("Crosstalk", "red");
+    } else {
+      setSpeechAnalytics("Customer speaking", "black");
+    }
+  } else if (speechAnalyticsState.agentSpeaking) {
+    setSpeechAnalytics("Agent speaking", "black");
+  } else {
+    setSpeechAnalytics("Silence", "orange");
+  }
+  if (speechAnalyticsState.microphoneMuteState) {
+    if (speechAnalyticsState.agentSpeaking) {
+      setMuteState("Speaking while muted", "red");
+    } else {
+      setMuteState("Muted", "orange");
+    }
+  } else {
+    setMuteState("Unmuted", "green");
+  }
+}
+
+function stringToColor(colorString: string): Color {
+  switch (colorString) {
+    case 'red':
+      return Color.red;
+    case 'green':
+      return Color.green;
+    case 'blue':
+      return Color.blue;
+    case 'yellow':
+      return Color.yellow;
+    case 'cyan':
+      return Color.cyan;
+    case 'magenta':
+      return Color.magenta;
+    case 'white':
+      return Color.white;
+    default:
+      return new Color(0, 0, 0);
+  }
+}
+
+export function colorToString(color: Color): string {
+  switch (color) {
+    case Color.red:
+      return 'red';
+    case Color.green:
+      return 'green';
+    case Color.blue:
+      return 'blue';
+    case Color.yellow:
+      return 'yellow';
+    case Color.cyan:
+      return 'cyan';
+    case Color.magenta:
+      return 'magenta';
+    case Color.white:
+      return 'white';
+    default:
+      return 'custom';
+  }
+}
+
+function stringToLedMode(modeString: string): LedMode {
+  switch (modeString) {
+    case 'SlowPulse':
+      return LedMode.slowPulse;
+    case 'FastPulse':
+      return LedMode.fastPulse;
+    case 'Off':
+      return LedMode.off;
+    case 'On':
+      return LedMode.on;
+    default:
+      return LedMode.on;
+  }
+}
+
+export function ledModeToString(mode: LedMode): string {
+  switch (mode) {
+    case LedMode.slowPulse:
+      return 'SlowPulse';
+    case LedMode.fastPulse:
+      return 'FastPulse';
+    case LedMode.off:
+      return 'Off';
+    case LedMode.on:
+      return 'On';
+    default:
+      return 'Unknown';
+  }
+}
+
+export function reset() {
+  setActiveHeadsetName(undefined);
+  setAmbientNoise(undefined);
+  setAudioExposure(undefined);
+  setSpeechAnalytics(undefined, undefined);
+  setMuteState(undefined, undefined);
+  setSideTone(undefined, undefined);
+  updateSpeechAnalytics({ customerSpeaking: false, agentSpeaking: false, microphoneMuteState: false });
+}
