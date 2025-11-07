@@ -9,6 +9,10 @@ let jabraSdk: IApi
 let propertyModule: IPropertyModule
 let propertyFactory: IPropertyFactory
 
+//TODO: Basic timing workaround. Document
+let sdkInitializationCompleted: () => void;
+const isSdkInitializationCompleted = new Promise<void>((resolve) => { sdkInitializationCompleted = resolve; });
+
 // Variables for button customization on specific device
 let threeDotButtonTakeover: IButton
 
@@ -47,10 +51,6 @@ async function initializeSdk() {
   // Initialize Jabra library using the config object
   jabraSdk = await init(config);
 
-  // Initialize PropertyModule.
-  propertyModule = new PropertyModule();
-  propertyFactory = await propertyModule.createPropertyFactory(propertiesDefinition);
-
   // Subscribe to Jabra devices being attached/detected by the SDK
   // NOTE: Timing wise we need to load the properties definition before initializing the SDK
   // as the PropertyModule needs it during initialization. Also, we want to set up the deviceAdded subscription
@@ -58,11 +58,18 @@ async function initializeSdk() {
   // INTERNAL NOTE: Feature request to update init: 982357
   //TODO: Has the feature been implemented? If so, update the comment accordingly.
   jabraSdk.deviceAdded.subscribe(handleDeviceAdded);
+
+  // Initialize PropertyModule.
+  propertyModule = new PropertyModule();
+  propertyFactory = await propertyModule.createPropertyFactory(propertiesDefinition);
+
+  // Notify that SDK initialization is completed
+  sdkInitializationCompleted();
 }
 
 
 async function handleDeviceAdded(device: IDevice) {
-  ui.reset()
+  await isSdkInitializationCompleted;
 
   ui.writeOutput(`Device attached/detected: ${device.name} (Product ID: ${device.productId}, Serial #: ${device.serialNumber})`);
 
@@ -74,6 +81,7 @@ async function handleDeviceAdded(device: IDevice) {
 
   // For some device models, subscribe to audio telemetry events as well.
   if (["Jabra Engage 40", "Jabra Engage 50", "Jabra Engage 50 II"].includes(device.name)) {
+    ui.reset()
 
     // Subscribe to audio telemetry properties
     await observeAudioTelemetry(device);
