@@ -9,18 +9,18 @@ let jabraSdk: IApi
 let propertyModule: IPropertyModule
 let propertyFactory: IPropertyFactory
 
-//TODO: Basic timing workaround. Document
+// Workaround to ensure SDK initialization timing. See usage below in comments marked with #workaround. (internal feature request: 982357)
 let sdkInitializationCompleted: () => void;
 const isSdkInitializationCompleted = new Promise<void>((resolve) => { sdkInitializationCompleted = resolve; });
 
-// Variables for button customization on specific device
-let threeDotButtonTakeover: IButton
+// Variables to hold button customization instances
+let threeDotButtonTakeoverInstance: IButton
 
 // Speech analytics states for the currently selected device
 const speechAnalyticsState = {
-  customerSpeaking: false,
-  agentSpeaking: false,
-  microphoneMuteState: false
+  customerSpeaking: undefined as boolean | undefined,
+  agentSpeaking: undefined as boolean | undefined,
+  microphoneMuteState: undefined as boolean | undefined
 };
 
 // Initialize the demo app when the page has loaded
@@ -29,18 +29,14 @@ window.addEventListener('load', async () => {
   await setupWebHidPermissionUI();
 });
 
-function updateSpeechAnalyticsState(key: keyof typeof speechAnalyticsState, value: boolean) {
-  speechAnalyticsState[key] = value;
-  ui.updateSpeechAnalytics(speechAnalyticsState);
-}
-
 async function initializeSdk() {
-  const config: IConfig = {
-    partnerKey: 'your-partner-key', // We recommend initializing with a proper Partner Key.
+  // Initialize Jabra core SDK library using a config object
+  const sdkConfig: IConfig = {
+    partnerKey: 'your-partner-key', // For production use, please obtain a partner key from developer.jabra.com
     transport: RequestedBrowserTransport.CHROME_EXTENSION_WITH_WEB_HID_FALLBACK, // For browser apps, you should **always** use CHROME_EXTENSION_WITH_WEB_HID_FALLBACK for transport. 
-    appId: 'my-app-id', // may contain a combination of letters (A-Z, a-z), numbers (123), underscores (_), and hyphens (-)
+    appId: 'my-app-id', // Unique identifier for your application used in logging output
     appName: 'My app name', // end-user friendly name for your application
-    logger: {
+    logger: { // setup log level and handling for SDK log output
       write(logEvent) {
         if (logEvent.level == LogLevel.ERROR) {
           ui.writeOutput("Jabra SDK log " + logEvent.level + ": " + logEvent.message, { level: "error" });
@@ -49,58 +45,62 @@ async function initializeSdk() {
       }
     }
   };
+  jabraSdk = await init(sdkConfig);
 
-  // Initialize Jabra library using the config object
-  jabraSdk = await init(config);
-
-  // Subscribe to Jabra devices being attached/detected by the SDK
-  // NOTE: Timing wise we need to load the properties definition before initializing the SDK
-  // as the PropertyModule needs it during initialization. Also, we want to set up the deviceAdded subscription
-  // immediately after initializing the SDK to avoid missing any devices.
-  // INTERNAL NOTE: Feature request to update init: 982357
-  //TODO: Has the feature been implemented? If so, update the comment accordingly.
+  // Subscribe to Jabra devices being attached/detected by the SDK.
+  // Do this immediately after initializing the core SDK to avoid missing attach events from already connected devices. #workaround
   jabraSdk.deviceAdded.subscribe(handleDeviceAdded);
 
-  // Initialize PropertyModule.
+  // Initialize Jabra SDK PropertyModule.
   propertyModule = new PropertyModule();
   propertyFactory = await propertyModule.createPropertyFactory(propertiesDefinition);
 
-  // Notify that SDK initialization is completed
+  // Notify that initialization of all Jabra SDK components is completed #workaround
   sdkInitializationCompleted();
 }
 
-
+/**
+ * Handler for when a Jabra device is attached/detected by the SDK
+ */
 async function handleDeviceAdded(device: IDevice) {
+  // Ensure that SDK initialization is completed before proceeding. #workaround
   await isSdkInitializationCompleted;
 
+  // Update UI with device information
   ui.writeOutput(`Device attached/detected: Product ID: ${device.productId}, Serial #: ${device.serialNumber}`, { deviceName: device.name });
-
-  // Update active headset name field
   ui.setActiveHeadsetName(device.name);
 
-  // Use Properties module to read properties
-  readDemoProperties(device);
 
   // For some device models, subscribe to audio telemetry events as well.
   if (["Jabra Engage 40", "Jabra Engage 50", "Jabra Engage 50 II"].includes(device.name)) {
-    ui.reset()
 
-    // Subscribe to audio telemetry properties
+    // Read a few properties from the device.
+    await readProperties(device);
+
+    // Subscribe to audio telemetry properties.
     await observeAudioTelemetry(device);
 
-    // Read selected settings from device and set up input fields to modify them
+    // Set up input fields to read and modify selected device settings (properties)
     await setupSettingsInputFields(device);
 
-    // Customize three-dot button and enable controls for it
+    // Customize "three-dot button" and enable controls for it
     await customizeButton(device)
     ui.enableThreeDotButtonControls(async (color, mode) => {
       // Callback when color or mode is changed from the UI
-      await threeDotButtonTakeover.setColor(color, mode);
+      await threeDotButtonTakeoverInstance.setColor(color, mode);
     });
   }
 }
 
+/**
+ * Add a button to the UI to allow the user to grant WebHID permission to the web app if needed.
+ */
 function setupWebHidPermissionUI() {
+  // With the CHROME_EXTENSION_WITH_WEB_HID_FALLBACK transport, we may be using WebHID transport. If so, there are two ways to grant permission:
+  // 1) The user has previously granted permission to the web app for the connected device(s). In this case, no action is needed.
+  // 2) The user needs to explicitly grant permission using the browser WebHID permission prompt. This requires a user gesture such as a button click.
+  // 3) A system administrator has set up enterprise policies to auto-grant WebHID permission to specific devices for specific web apps. In this case, no action is needed.
+  // Therefore, we add a button to the UI that the user can click to start the WebHID permission flow if needed.
   if (jabraSdk.transportContext === TransportContext.WEB_HID) {
     ui.writeOutput("Jabra SDK initialized using WebHID transport. Properties will only work on devices that support WebHID fully such as Jabra Engage 40, 50, 50 II. If you need to use properties with other devices, try using the Chrome Extension transport instead.");
     ui.writeOutput("For first time use, please click the 'Add Jabra headset' button to add a device using WebHID.");
@@ -113,91 +113,10 @@ function setupWebHidPermissionUI() {
   }
 }
 
-async function observeAudioTelemetry(device: IDevice) {
-  // List the Jabra device properties and prepare them for use on the device
-  const propertyNames = [
-    "backgroundNoiseLevel",
-    "audioExposure",
-    "customerSpeaking",
-    "agentSpeaking",
-    "microphoneMuteState"
-  ];
-  const propertyMap = await propertyFactory.createProperties(device, propertyNames);
-
-  ui.writeOutput("Property map for audio telemetry properties created", { deviceName: device.name });
-
-  // Subscribe to `watch()` observable properties. Note that not all properties support `watch()`.
-  watchProperty(device, propertyMap.get("backgroundNoiseLevel"), value => {
-    ui.setAmbientNoise(value);
-  })
-  watchProperty(device, propertyMap.get("audioExposure"), value => {
-    ui.setAudioExposure(value);
-  })
-  watchProperty(device, propertyMap.get("customerSpeaking"), value => {
-    updateSpeechAnalyticsState("customerSpeaking", value);
-  })
-  watchProperty(device, propertyMap.get("agentSpeaking"), value => {
-    updateSpeechAnalyticsState("agentSpeaking", value);
-  })
-  watchProperty(device, propertyMap.get("microphoneMuteState"), value => {
-    updateSpeechAnalyticsState("microphoneMuteState", value);
-  })
-}
-
-async function setupSettingsInputFields(device: IDevice) {
-  try {
-    const propertyNames = [
-      "sidetoneEnabled"
-    ];
-    const propertyMap = await propertyFactory.createProperties(device, propertyNames);
-
-    //Read properties from device
-    const sidetoneEnabledProperty = propertyMap.get("sidetoneEnabled");
-    const sidetoneEnabled = await sidetoneEnabledProperty.get();
-
-    ui.setSideTone(sidetoneEnabled.toString(), async (value) => {
-      const newValue = (value === 'true');
-      updateProperty(device, "sidetoneEnabled", newValue);
-    });
-  } catch (error) {
-    ui.writeOutput("Error reading properties: " + error + ". This commonly happens if you try to read properties from a device that does not support WebHID transport for properties.", { level: "error", deviceName: device.name });
-  }
-}
-
-async function customizeButton(device: IDevice) {
-  try {
-    const deviceController = await createDeviceController(device);
-
-    if (!deviceController) {
-      ui.writeOutput("Device controller could not be created for device. Device may not support button customization.", { level: "error", deviceName: device.name });
-      throw Error("Device controller could not be created for device. Device may not support button customization: " + device.name);
-    }
-
-    threeDotButtonTakeover = await deviceController.getButton(ButtonId.threeDot);
-    const threeDotButtonListener = await threeDotButtonTakeover.listenFor(ButtonInteraction.down);
-    threeDotButtonListener.subscribe({
-      next: () => {
-        ui.writeOutput('Three-dot button down event detected', { deviceName: device.name });
-      },
-      error: (error: Error) => {
-        console.error(`Error listening for button down event: ${error}`, { level: "error", deviceName: device.name });
-      },
-      complete: () => {
-        ui.writeOutput('Stopped listening for button down event', { deviceName: device.name });
-      }
-    });
-
-    // Set initial 3-dot button LED color and mode
-    const color = Color.blue
-    const mode = LedMode.on;
-    await threeDotButtonTakeover.setColor(color, mode);
-    ui.setThreeDotColorAndMode(color, mode);
-  } catch (error) {
-    console.error('Error customizing button:', error);
-  }
-}
-
-async function readDemoProperties(device: IDevice) {
+/**
+ * Read selected properties (like settings and firmware version) from the device and print them to the UI.
+ */
+async function readProperties(device: IDevice) {
   try {
     // List the Jabra device properties and prepare them for use on the device
     const propertyNames = [
@@ -215,6 +134,9 @@ async function readDemoProperties(device: IDevice) {
   }
 }
 
+/**
+ * Helper function to use the Jabra SDK Properties module to watch a property and handle incoming values and errors appropriately.
+ */
 function watchProperty(device: IDevice, property: IProperty, handleValue: (value: any) => void) {
   ui.writeOutput(`Subscribing to watch changes of ${property.name}`, { deviceName: device.name });
   property.watch().subscribe({
@@ -238,6 +160,9 @@ function watchProperty(device: IDevice, property: IProperty, handleValue: (value
   });
 }
 
+/**
+ * Helper function to use the Jabra SDK Properties module to update a property on the device and handle errors appropriately.
+ */
 async function updateProperty(device: IDevice, propertyName: string, value: any) {
   try {
     const propertyMap = await propertyFactory.createProperties(device, [propertyName]);
@@ -246,4 +171,110 @@ async function updateProperty(device: IDevice, propertyName: string, value: any)
   } catch (error) {
     ui.writeOutput("Error writing properties: " + error, { level: "error", deviceName: device.name });
   }
+}
+
+/**
+ * Using the Jabra SDK Properties Module, setup observation of audio telemetry properties from the device and print all changes received from
+ * the device to the UI. Both as raw events and as interpreted values like "cross talk" etc. 
+ */
+async function observeAudioTelemetry(device: IDevice) {
+  // List the Jabra device properties and prepare them for use on the device
+  const propertyNames = [
+    "backgroundNoiseLevel",
+    "audioExposure",
+    "customerSpeaking",
+    "agentSpeaking",
+    "microphoneMuteState"
+  ];
+  const propertyMap = await propertyFactory.createProperties(device, propertyNames);
+  ui.writeOutput("Property map for audio telemetry properties created", { deviceName: device.name });
+
+  // Subscribe to `watch()` observable properties. Note that not all properties support `watch()`.
+  watchProperty(device, propertyMap.get("backgroundNoiseLevel"), value => {
+    ui.setAmbientNoise(value);
+  })
+  watchProperty(device, propertyMap.get("audioExposure"), value => {
+    ui.setAudioExposure(value);
+  })
+  watchProperty(device, propertyMap.get("customerSpeaking"), value => {
+    updateSpeechAnalyticsState("customerSpeaking", value);
+  })
+  watchProperty(device, propertyMap.get("agentSpeaking"), value => {
+    updateSpeechAnalyticsState("agentSpeaking", value);
+  })
+  watchProperty(device, propertyMap.get("microphoneMuteState"), value => {
+    updateSpeechAnalyticsState("microphoneMuteState", value);
+  })
+
+  //Function to update the demo apps speech analytics state. This is needed to derive combined states like "crosstalk".
+  function updateSpeechAnalyticsState(key: keyof typeof speechAnalyticsState, value: boolean | undefined) {
+    speechAnalyticsState[key] = value;
+    ui.updateSpeechAnalytics(speechAnalyticsState);
+  }
+}
+
+/**
+ * Using the Jabra SDK Properties Module, setup input fields for selected device settings. I.e. read the current value from the device and allow
+ * the user to modify the value using the UI.
+ */
+async function setupSettingsInputFields(device: IDevice) {
+  try {
+    const propertyNames = [
+      "sidetoneEnabled"
+    ];
+    const propertyMap = await propertyFactory.createProperties(device, propertyNames);
+
+    //Read properties from device
+    const sidetoneEnabledProperty = propertyMap.get("sidetoneEnabled");
+    const sidetoneEnabled = await sidetoneEnabledProperty.get();
+
+    // Setup UI to watch and modify sidetoneEnabled property
+    ui.setSideTone(sidetoneEnabled.toString(), async (value) => {
+      const newValue = (value === 'true');
+      updateProperty(device, "sidetoneEnabled", newValue);
+    });
+  } catch (error) {
+    ui.writeOutput("Error reading properties: " + error + ". This commonly happens if you try to read properties from a device that does not support WebHID transport for properties.", { level: "error", deviceName: device.name });
+  }
+}
+
+/**
+ * Using the Jabra SDK Button Customization Module, take over the "three-dot button" (a button with no default functionality) on the device to:
+ * 1) Customize its' LED color and mode via the UI dropdowns.
+ * 2) Setup subscriptions to log button down events to the UI.
+ */
+async function customizeButton(device: IDevice) {
+  // Create a device controller for the device from the Jabra SDK Button Customization Module
+  const deviceController = await createDeviceController(device);
+
+  // Check if the device supports button customization. Not all devices do.
+  if (!deviceController) {
+    ui.writeOutput("Device controller could not be created for device. Device may not support button customization.", { level: "error", deviceName: device.name });
+    throw Error("Device controller could not be created for device. Device may not support button customization: " + device.name);
+  }
+
+  // Take over the "three-dot button" on the device by creating a button instance for it. This needs to be persisted to be able to modify
+  // color/mode and listen for events.
+  threeDotButtonTakeoverInstance = await deviceController.getButton(ButtonId.threeDot);
+  const threeDotButtonListener = await threeDotButtonTakeoverInstance.listenFor(ButtonInteraction.down); // Note other ButtonInteraction interaction like .up .tap, .doubleTap are also available.
+  threeDotButtonListener.subscribe({
+    next: () => {
+      // Called when a button down event is received
+      ui.writeOutput('Three-dot button down event detected', { deviceName: device.name });
+    },
+    error: (error: Error) => {
+      // Called if an error occurs when listening for button events
+      console.error(`Error listening for button down event: ${error}`, { level: "error", deviceName: device.name });
+    },
+    complete: () => {
+      // Called when listening for button events is stopped
+      ui.writeOutput('Stopped listening for button down event', { deviceName: device.name });
+    }
+  });
+
+  // Set initial 3-dot button LED color and mode
+  const color = Color.blue
+  const mode = LedMode.on;
+  await threeDotButtonTakeoverInstance.setColor(color, mode);
+  ui.setThreeDotColorAndMode(color, mode);
 }
