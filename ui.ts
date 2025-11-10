@@ -1,11 +1,17 @@
 import { Color, LedMode } from "@gnaudio/jabra-js-button-customization";
 
-export function writeOutput(...msg: any[]) {
-  const box = document.getElementById('outputBox') as HTMLTextAreaElement;
-  if (box) {
-    box.value += msg.join(' ') + '\n';
-    box.scrollTop = box.scrollHeight;
-  }
+export function writeOutput(msg: any, meta: { level?: 'info' | 'warning' | 'error', deviceName?: string } = {}) {
+  const { level = 'info', deviceName } = meta;
+  const box = document.getElementById('outputBox') as HTMLDivElement;
+  const timestamp = new Date().toLocaleTimeString('en-US', { hour12: false }) + '.' + new Date().getMilliseconds();
+  const timeText = deviceName ? `${timestamp} [${deviceName}]` : timestamp;
+
+  const logElm = document.createElement('div');
+  logElm.className = `log-item ${level}`;
+  logElm.innerHTML = `<span class="timestamp">${timeText}</span><span class="log-item ${level}">${msg}</span>`;
+
+  box.appendChild(logElm);
+  box.scrollTop = box.scrollHeight;
 }
 
 export function setActiveHeadsetName(name: string | undefined) {

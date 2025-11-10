@@ -42,8 +42,10 @@ async function initializeSdk() {
     appName: 'My app name', // end-user friendly name for your application
     logger: {
       write(logEvent) {
-        if (logEvent.level == LogLevel.ERROR)
+        if (logEvent.level == LogLevel.ERROR) {
+          ui.writeOutput("Jabra SDK log " + logEvent.level + ": " + logEvent.message, { level: "error" });
           console.error("Jabra SDK log " + logEvent.level + ": " + logEvent.message, logEvent.layer);
+        }
       }
     }
   };
@@ -71,7 +73,7 @@ async function initializeSdk() {
 async function handleDeviceAdded(device: IDevice) {
   await isSdkInitializationCompleted;
 
-  ui.writeOutput(`Device attached/detected: ${device.name} (Product ID: ${device.productId}, Serial #: ${device.serialNumber})`);
+  ui.writeOutput(`Device attached/detected: Product ID: ${device.productId}, Serial #: ${device.serialNumber}`, { deviceName: device.name });
 
   // Update active headset name field
   ui.setActiveHeadsetName(device.name);
@@ -122,7 +124,7 @@ async function observeAudioTelemetry(device: IDevice) {
   ];
   const propertyMap = await propertyFactory.createProperties(device, propertyNames);
 
-  ui.writeOutput("Property map for audio telemetry properties created for device " + device.name);
+  ui.writeOutput("Property map for audio telemetry properties created", { deviceName: device.name });
 
   // Subscribe to `watch()` observable properties. Note that not all properties support `watch()`.
   watchProperty(device, propertyMap.get("backgroundNoiseLevel"), value => {
@@ -158,8 +160,7 @@ async function setupSettingsInputFields(device: IDevice) {
       updateProperty(device, "sidetoneEnabled", newValue);
     });
   } catch (error) {
-    ui.writeOutput("Error reading properties for device " + device.name + ": " + error);
-    ui.writeOutput("This commonly happens if you try to read properties from a device that does not support WebHID transport for properties.");
+    ui.writeOutput("Error reading properties: " + error + ". This commonly happens if you try to read properties from a device that does not support WebHID transport for properties.", { level: "error", deviceName: device.name });
   }
 }
 
@@ -168,7 +169,7 @@ async function customizeButton(device: IDevice) {
     const deviceController = await createDeviceController(device);
 
     if (!deviceController) {
-      ui.writeOutput("Device controller could not be created for device. Device may not support button customization: " + device.name);
+      ui.writeOutput("Device controller could not be created for device. Device may not support button customization.", { level: "error", deviceName: device.name });
       throw Error("Device controller could not be created for device. Device may not support button customization: " + device.name);
     }
 
@@ -176,13 +177,13 @@ async function customizeButton(device: IDevice) {
     const threeDotButtonListener = await threeDotButtonTakeover.listenFor(ButtonInteraction.down);
     threeDotButtonListener.subscribe({
       next: () => {
-        ui.writeOutput('Three-dot button down event detected');
+        ui.writeOutput('Three-dot button down event detected', { deviceName: device.name });
       },
       error: (error: Error) => {
-        console.error('Error listening for button down event:', error);
+        console.error(`Error listening for button down event: ${error}`, { level: "error", deviceName: device.name });
       },
       complete: () => {
-        ui.writeOutput('Stopped listening for button down event');
+        ui.writeOutput('Stopped listening for button down event', { deviceName: device.name });
       }
     });
 
@@ -203,37 +204,36 @@ async function readDemoProperties(device: IDevice) {
       "firmwareVersion",
     ];
     const propertyMap = await propertyFactory.createProperties(device, propertyNames);
-    ui.writeOutput("Property map created for device " + device.name);
+    ui.writeOutput("Property map created", { deviceName: device.name });
 
     //Read properties from device
     const firmwareVersion = await propertyMap.get("firmwareVersion").get();
-    ui.writeOutput("Firmware version for " + device.name + ": " + firmwareVersion);
+    ui.writeOutput("Firmware version: " + firmwareVersion, { deviceName: device.name });
 
   } catch (error) {
-    ui.writeOutput("Error reading properties for device " + device.name + ": " + error);
-    ui.writeOutput("Common error reasons are: (1) Reading properties not supported by this device. (2) Reading properties from a device that does not support WebHID transport for properties.");
+    ui.writeOutput("Error reading properties: " + error + ". Common error reasons are: (1) Reading properties not supported by this device. (2) Reading properties from a device that does not support WebHID transport for properties.", { level: "error", deviceName: device.name });
   }
 }
 
 function watchProperty(device: IDevice, property: IProperty, handleValue: (value: any) => void) {
-  ui.writeOutput(`Subscribing to watch changes of ${property.name} on ${device.name}`);
+  ui.writeOutput(`Subscribing to watch changes of ${property.name}`, { deviceName: device.name });
   property.watch().subscribe({
     next(value) {
       // When a new value is received
-      ui.writeOutput(`${property.name} for ${device.name}:`, value);
+      ui.writeOutput(`${property.name}: ${value}`, { deviceName: device.name });
       handleValue(value);
     },
     error(e) {
       // When an error occurs when setting up or running the watch
       if (e instanceof JabraError) {
-        console.warn(`Could not subscribe to ${property.name}. It may not be supported by ${device.name}`);
+        ui.writeOutput(`Could not subscribe to ${property.name}. It may not be supported by device`, { level: "warning", deviceName: device.name });
       } else {
-        console.warn(`Failed monitoring ${property.name} on ${device.name}`, e);
+        ui.writeOutput(`Failed monitoring ${property.name}: ${e}`, { level: "error", deviceName: device.name });
       }
     },
     complete() {
       // When the watch is ended. E.g. when the device is disconnected
-      ui.writeOutput(`Completed observing ${property.name} for ${device.name}`);
+      ui.writeOutput(`Completed observing ${property.name}`, { deviceName: device.name });
     }
   });
 }
@@ -242,8 +242,8 @@ async function updateProperty(device: IDevice, propertyName: string, value: any)
   try {
     const propertyMap = await propertyFactory.createProperties(device, [propertyName]);
     await propertyMap.startTransaction().set(propertyName, value).commit();
-    ui.writeOutput("Updated " + propertyName + " to " + value + " for " + device.name);
+    ui.writeOutput("Updated " + propertyName + " to " + value, { deviceName: device.name });
   } catch (error) {
-    ui.writeOutput("Error writing properties to device " + device.name + ": " + error);
+    ui.writeOutput("Error writing properties: " + error, { level: "error", deviceName: device.name });
   }
 }
