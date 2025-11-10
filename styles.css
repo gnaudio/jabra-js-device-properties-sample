@@ -2,13 +2,101 @@ body {
   font-family: Arial, sans-serif;
 }
 
-h2 {
-  font-size: 1.8em;
-  margin-top: 0px;
-}
-
 h1 img {
   width: 80px;
+}
+
+h2 {
+  font-size: 1.8em;
+  margin-top: 0;
+}
+
+.layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.left-pane,
+.right-pane {
+  flex: 1 1 50%;
+  max-width: 50%;
+  min-width: 400px;
+}
+
+.form-section {
+  margin-bottom: 16px;
+}
+
+th {
+  height: 2rem;
+  padding-right: 1rem;
+  text-align: left;
+}
+
+input,
+select {
+  padding: 0.1em;
+  font-size: 1.1em;
+}
+
+.small-num {
+  width: 4ch;
+  padding: 4px;
+  background: #fff;
+  border: 1px solid #666;
+  border-radius: 4px;
+  box-sizing: border-box;
+  text-align: right;
+}
+
+.small-text {
+  width: 20ch;
+  padding: 4px;
+  background: #fff;
+  border: 1px solid #666;
+  border-radius: 4px;
+  box-sizing: border-box;
+  text-align: right;
+}
+
+.small-num[readonly],
+.small-text[readonly] {
+  background: transparent;
+  font-size: 1.05em;
+  font-weight: bold;
+}
+
+#outputBox {
+  width: 100%;
+  height: 45vh;
+  margin-bottom: 1rem;
+  padding: 0;
+  overflow-y: scroll;
+  background-color: #fff;
+  border: 1px solid #666;
+  font-family: Consolas, monospace;
+  font-size: 0.8em;
+}
+
+#outputBox .log-item {
+  margin: 0.5rem;
+}
+
+#outputBox .info {
+  color: #000;
+}
+
+#outputBox .warning {
+  color: orange;
+}
+
+#outputBox .error {
+  color: red;
+}
+
+#outputBox .timestamp {
+  color: #999;
 }
 
 .hidden {
@@ -24,41 +112,13 @@ h1 img {
   font-style: italic;
 }
 
-.form-section {
-  margin-bottom: 16px;
-}
-
-th {
-  text-align: left;
-  height: 2rem;
-  padding-right: 1rem;
-}
-
-input,
-select {
-  padding: 0.1em;
-  font-size: 1.1em;
-}
-
-textarea#outputBox {
-  font-family: Consolas, monospace;
-  font-size: 0.8em;
-  width: 100%;
-  height: 45vh;
-}
-
-.layout {
-  display: flex;
-  gap: 24px;
-  align-items: flex-start;
-}
-
-.left-pane,
-.right-pane {
-  flex: 1 1 50%;
-  max-width: 50%;
-  min-width: 400px;
-  min-width: 400px;
+.info-panel {
+  margin-top: 24px;
+  padding: 16px;
+  background: #fafafa;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 0.95em;
 }
 
 @media (max-width: 800px) {
@@ -70,41 +130,4 @@ textarea#outputBox {
   .right-pane {
     max-width: 100%;
   }
-}
-
-.info-panel {
-  border: 1px solid #ccc;
-  padding: 16px;
-  border-radius: 8px;
-  background: #fafafa;
-  font-size: 0.95em;
-  margin-top: 24px;
-}
-
-.small-num {
-  width: 4ch;
-  text-align: right;
-  padding: 4px 4px;
-  box-sizing: border-box;
-  border: 1px solid #666;
-  border-radius: 4px;
-  background: #fff;
-}
-
-.small-text {
-  width: 20ch;
-  text-align: right;
-  padding: 4px 4px;
-  box-sizing: border-box;
-  border: 1px solid #666;
-  border-radius: 4px;
-  background: #fff;
-}
-
-/* Make readonly inputs visually non-editable but selectable */
-.small-num[readonly],
-.small-text[readonly] {
-  background: transparent;
-  font-size: 1.05em;
-  font-weight: bold;
 }
