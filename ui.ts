@@ -1,17 +1,20 @@
+/*********************************************************
+ ** Logic for updating and managing the user interface. **
+ ** NOT RELEVANT TO UNDERSTAND JABRA SDK USE.           **  
+ ********************************************************/
 import { Color, LedMode } from "@gnaudio/jabra-js-button-customization";
 
 export function writeOutput(msg: any, meta: { level?: 'info' | 'warning' | 'error', deviceName?: string } = {}) {
   const { level = 'info', deviceName } = meta;
   const box = document.getElementById('outputBox') as HTMLDivElement;
-  const timestamp = new Date().toLocaleTimeString('en-US', { hour12: false }) + '.' + new Date().getMilliseconds();
+  const timestamp = new Date().toLocaleTimeString('en-US', { hour12: false }) + '.' + new Date().getMilliseconds().toString().padStart(3, '0');
   const timeText = deviceName ? `${timestamp} [${deviceName}]` : timestamp;
 
   const logElm = document.createElement('div');
   logElm.className = `log-item ${level}`;
   logElm.innerHTML = `<span class="timestamp">${timeText}</span><span class="log-item ${level}">${msg}</span>`;
 
-  box.appendChild(logElm);
-  box.scrollTop = box.scrollHeight;
+  box.insertBefore(logElm, box.firstChild);
 }
 
 export function setActiveHeadsetName(name: string | undefined) {
@@ -132,7 +135,7 @@ export function setThreeDotColorAndMode(color: Color, mode: LedMode) {
   }
 }
 
-export function updateSpeechAnalytics(speechAnalyticsState: { customerSpeaking: boolean; agentSpeaking: boolean; microphoneMuteState: boolean; }) {
+export function updateSpeechAnalytics(speechAnalyticsState: { customerSpeaking?: boolean; agentSpeaking?: boolean; microphoneMuteState?: boolean; }) {
   if (speechAnalyticsState.customerSpeaking) {
     if (speechAnalyticsState.agentSpeaking) {
       setSpeechAnalytics("Crosstalk", "red");
@@ -155,76 +158,37 @@ export function updateSpeechAnalytics(speechAnalyticsState: { customerSpeaking: 
   }
 }
 
+const colorMapping = {
+  red: Color.red,
+  green: Color.green,
+  blue: Color.blue,
+  yellow: Color.yellow,
+  cyan: Color.cyan,
+  magenta: Color.magenta,
+  white: Color.white,
+} as const;
+
+const ledModeMapping = {
+  SlowPulse: LedMode.slowPulse,
+  FastPulse: LedMode.fastPulse,
+  Off: LedMode.off,
+  On: LedMode.on,
+} as const;
+
 function stringToColor(colorString: string): Color {
-  switch (colorString) {
-    case 'red':
-      return Color.red;
-    case 'green':
-      return Color.green;
-    case 'blue':
-      return Color.blue;
-    case 'yellow':
-      return Color.yellow;
-    case 'cyan':
-      return Color.cyan;
-    case 'magenta':
-      return Color.magenta;
-    case 'white':
-      return Color.white;
-    default:
-      return new Color(0, 0, 0);
-  }
+  return colorMapping[colorString as keyof typeof colorMapping] ?? new Color(0, 0, 0);
 }
 
 export function colorToString(color: Color): string {
-  switch (color) {
-    case Color.red:
-      return 'red';
-    case Color.green:
-      return 'green';
-    case Color.blue:
-      return 'blue';
-    case Color.yellow:
-      return 'yellow';
-    case Color.cyan:
-      return 'cyan';
-    case Color.magenta:
-      return 'magenta';
-    case Color.white:
-      return 'white';
-    default:
-      return 'custom';
-  }
+  return Object.entries(colorMapping).find(([_, value]) => value === color)?.[0] ?? 'custom';
 }
 
 function stringToLedMode(modeString: string): LedMode {
-  switch (modeString) {
-    case 'SlowPulse':
-      return LedMode.slowPulse;
-    case 'FastPulse':
-      return LedMode.fastPulse;
-    case 'Off':
-      return LedMode.off;
-    case 'On':
-      return LedMode.on;
-    default:
-      return LedMode.on;
-  }
+  return ledModeMapping[modeString as keyof typeof ledModeMapping] ?? LedMode.on;
 }
 
 export function ledModeToString(mode: LedMode): string {
-  switch (mode) {
-    case LedMode.slowPulse:
-      return 'SlowPulse';
-    case LedMode.fastPulse:
-      return 'FastPulse';
-    case LedMode.off:
-      return 'Off';
-    case LedMode.on:
-      return 'On';
-    default:
-      return 'Unknown';
-  }
+  return Object.entries(ledModeMapping).find(([_, value]) => value.name === mode.name)?.[0] ?? 'Unknown';
 }
 
 export function reset() {
