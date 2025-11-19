@@ -1,6 +1,6 @@
 import { createApi, webHidPairing, RequestedBrowserTransport, TransportContext, LogLevel, IApi, IDevice, JabraError, IConfig } from '@gnaudio/jabra-js';
 import { ButtonInteraction, createDeviceController, ButtonId, Color, LedMode, IButton } from '@gnaudio/jabra-js-button-customization';
-import { IProperty, IPropertyFactory, IPropertyModule, PropertyModule } from '@gnaudio/jabra-js-properties';
+import { IProperty, IPropertyFactory, IPropertyMap, IPropertyModule, PropertyModule } from '@gnaudio/jabra-js-properties';
 import * as ui from './ui'
 import propertiesDefinition from '@gnaudio/jabra-properties-definition/properties.json'
 
@@ -45,11 +45,11 @@ async function initializeSdk() {
   jabraSdk = await createApi(sdkConfig);
   // Subscribe to Jabra devices being attached/detected by the SDK.
   jabraSdk.deviceAdded.subscribe(handleDeviceAdded);
-  // Finalize initialization of the Jabra SDK core library. After this, the SDK will start detecting and connecting to devices.
-  await jabraSdk.start();
   // Initialize Jabra SDK PropertyModule.
   propertyModule = new PropertyModule();
   propertyFactory = await propertyModule.createPropertyFactory(propertiesDefinition);
+  // Finalize initialization of the Jabra SDK core library. After this, the SDK will start detecting and connecting to devices.
+  await jabraSdk.start();
 }
 
 /**
