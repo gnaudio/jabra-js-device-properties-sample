@@ -1,12 +1,13 @@
 # Jabra JS SDK4 Properties & Button Customization demo
 
-This project is a browser-based demo showing how to work with Properties and Button Customization in the Jabra JS SDK. 
+This project is a browser-based demo showing how to work with Properties and Button Customization in the [Jabra JavaScript SDK](https://developer.jabra.com/sdks-and-tools/javascript). 
 
 ## Features
 - Connect to Jabra devices using WebHID
 - Read and set device properties (firmware version, sidetone on/off)
 - Subscribe to headset telemetry events (background noise, speech analytics, audio exposure)
 - Customize the 3-dot button LED color and mode (including custom RGB)
+- Listen for button taps on the 3-dot button
 
 ## Getting Started
 
