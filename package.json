@@ -1,9 +1,10 @@
 {
   "dependencies": {
-    "@gnaudio/jabra-js": "4.3.5",
+    "@gnaudio/jabra-js": "4.4.1",
     "@gnaudio/jabra-js-button-customization": "^1.0.3",
     "@gnaudio/jabra-js-properties": "^1.0.3",
-    "@gnaudio/jabra-properties-definition": "^12.1.2"
+    "@gnaudio/jabra-properties-definition": "^12.2.0",
+    "typescript": "^5.9.3"
   },
   "overrides": {
     "@gnaudio/jabra-js": "$@gnaudio/jabra-js"
@@ -12,6 +13,7 @@
     "vite": "^7.1.2"
   },
   "scripts": {
-    "start": "vite"
+    "start": "vite",
+    "build": "tsc"
   }
 }
