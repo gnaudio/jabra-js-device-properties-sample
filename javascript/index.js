@@ -41,7 +41,7 @@ async function initializeSdk() {
     // Subscribe to Jabra devices being attached/detected by the SDK.
     jabraSdk.deviceAdded.subscribe(handleDeviceAdded);
     // Finalize initialization of the Jabra SDK core library. After this, the SDK will start detecting and connecting to devices.
-    jabraSdk.start();
+    await jabraSdk.start();
     // Initialize Jabra SDK PropertyModule.
     propertyModule = new PropertyModule();
     propertyFactory = await propertyModule.createPropertyFactory(propertiesDefinition);
