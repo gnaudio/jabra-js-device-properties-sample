@@ -111,7 +111,7 @@ async function readProperties(device: IDevice) {
     const propertyNames = [
       "firmwareVersion",
     ];
-    const propertyMap = await propertyFactory.createProperties(device, propertyNames);
+    const propertyMap: IPropertyMap = await propertyFactory.createProperties(device, propertyNames);
     ui.writeOutput("Property map created", { deviceName: device.name });
 
     //Read properties from device
@@ -154,7 +154,7 @@ function watchProperty(device: IDevice, property: IProperty, handleValue: (value
  */
 async function updateProperty(device: IDevice, propertyName: string, value: any) {
   try {
-    const propertyMap = await propertyFactory.createProperties(device, [propertyName]);
+    const propertyMap: IPropertyMap = await propertyFactory.createProperties(device, [propertyName]);
     await propertyMap.startTransaction().set(propertyName, value).commit();
     ui.writeOutput("Updated " + propertyName + " to " + value, { deviceName: device.name });
   } catch (error) {
@@ -175,7 +175,7 @@ async function observeAudioTelemetry(device: IDevice) {
     "agentSpeaking",
     "microphoneMuteState"
   ];
-  const propertyMap = await propertyFactory.createProperties(device, propertyNames);
+  const propertyMap: IPropertyMap = await propertyFactory.createProperties(device, propertyNames);
   ui.writeOutput("Property map for audio telemetry properties created", { deviceName: device.name });
 
   // Subscribe to `watch()` observable properties. Note that not all properties support `watch()`.
@@ -211,7 +211,7 @@ async function setupSettingsInputFields(device: IDevice) {
     const propertyNames = [
       "sidetoneEnabled"
     ];
-    const propertyMap = await propertyFactory.createProperties(device, propertyNames);
+    const propertyMap: IPropertyMap = await propertyFactory.createProperties(device, propertyNames);
 
     //Read properties from device
     const sidetoneEnabledProperty = propertyMap.get("sidetoneEnabled");
