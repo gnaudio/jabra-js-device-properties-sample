@@ -1,4 +1,4 @@
-import { init, webHidPairing, RequestedBrowserTransport, TransportContext, LogLevel, JabraError } from '@gnaudio/jabra-js';
+import { createApi, webHidPairing, RequestedBrowserTransport, TransportContext, LogLevel, JabraError } from '@gnaudio/jabra-js';
 import { ButtonInteraction, createDeviceController, ButtonId, Color, LedMode } from '@gnaudio/jabra-js-button-customization';
 import { PropertyModule } from '@gnaudio/jabra-js-properties';
 import * as ui from './ui';
@@ -7,9 +7,6 @@ import propertiesDefinition from '@gnaudio/jabra-properties-definition/propertie
 let jabraSdk;
 let propertyModule;
 let propertyFactory;
-// Workaround to ensure SDK initialization timing. See usage below in comments marked with #workaround. (internal feature request: 982357)
-let sdkInitializationCompleted;
-const isSdkInitializationCompleted = new Promise((resolve) => { sdkInitializationCompleted = resolve; });
 // Variables to hold button customization instances
 let threeDotButtonTakeoverInstance;
 // Speech analytics states for the currently selected device
@@ -21,7 +18,7 @@ const speechAnalyticsState = {
 // Initialize the demo app when the page has loaded
 window.addEventListener('load', async () => {
     await initializeSdk();
-    await setupWebHidPermissionUI();
+    setupWebHidPermissionUI();
 });
 async function initializeSdk() {
     // Initialize Jabra core SDK library using a config object
@@ -39,22 +36,20 @@ async function initializeSdk() {
             }
         }
     };
-    jabraSdk = await init(sdkConfig);
+    // Using createApi() instead of init() to avoid timing issue with SDK initialization.
+    jabraSdk = await createApi(sdkConfig);
     // Subscribe to Jabra devices being attached/detected by the SDK.
-    // Do this immediately after initializing the core SDK to avoid missing attach events from already connected devices. #workaround
     jabraSdk.deviceAdded.subscribe(handleDeviceAdded);
+    // Finalize initialization of the Jabra SDK core library. After this, the SDK will start detecting and connecting to devices.
+    jabraSdk.start();
     // Initialize Jabra SDK PropertyModule.
     propertyModule = new PropertyModule();
     propertyFactory = await propertyModule.createPropertyFactory(propertiesDefinition);
-    // Notify that initialization of all Jabra SDK components is completed #workaround
-    sdkInitializationCompleted();
 }
 /**
  * Handler for when a Jabra device is attached/detected by the SDK
  */
 async function handleDeviceAdded(device) {
-    // Ensure that SDK initialization is completed before proceeding. #workaround
-    await isSdkInitializationCompleted;
     // Update UI with device information
     ui.writeOutput(`Device attached/detected: Product ID: ${device.productId}, Serial #: ${device.serialNumber}`, { deviceName: device.name });
     ui.setActiveHeadsetName(device.name);
