@@ -3,7 +3,7 @@
 This project is a browser-based demo showing how to work with Properties and Button Customization in the [Jabra JavaScript SDK](https://developer.jabra.com/sdks-and-tools/javascript). 
 
 ## Features
-- Connect to Jabra devices using WebHID
+- Connect to Jabra devices using WebHID. This demo is focused on Jabra Engage 40, 50 and 50 II with latest FW which supports all features natively in the browser with WebHID. 
 - Read and set device properties (firmware version, sidetone on/off)
 - Subscribe to headset telemetry events (background noise, speech analytics, audio exposure)
 - Customize the 3-dot button LED color and mode (including custom RGB)
