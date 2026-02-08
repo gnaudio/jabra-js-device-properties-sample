@@ -8,6 +8,7 @@ This project is a browser-based demo showing how to work with Properties and But
 - Subscribe to headset telemetry events (background noise, speech analytics, audio exposure)
 - Customize the 3-dot button LED color and mode (including custom RGB)
 - Listen for button taps on the 3-dot button
+- For Jabra Engage 55/65/75 series the demo supports subscribing to battery states, call state and microphone mute state. Please note that these headsets do not support connecting with WebHID - please install [End-user components](https://developer.jabra.com/sdks-and-tools/javascript#end-user-components) to try out this part of the demo. 
 
 ## Getting Started
 

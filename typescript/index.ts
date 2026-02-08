@@ -79,6 +79,15 @@ async function handleDeviceAdded(device: IDevice) {
       await threeDotButtonTakeoverInstance.setColor(color, mode);
     });
   }
+
+  if (["Jabra Engage 65", "Jabra Engage 55", "Jabra Engage 75", "Jabra Engage 65 SE", "Jabra Engage 55 SE", "Jabra Engage 75 SE"].includes(device.name)) {
+
+    // Read a few properties from the device.
+    await readProperties(device);
+
+    // Subscribe to battery and call state telemetry properties.
+    await observeBatteryCallStateTelemetry(device);
+  }
 }
 
 /**
@@ -191,6 +200,36 @@ async function observeAudioTelemetry(device: IDevice) {
   watchProperty(device, propertyMap.get("agentSpeaking"), value => {
     updateSpeechAnalyticsState("agentSpeaking", value);
   })
+  watchProperty(device, propertyMap.get("microphoneMuteState"), value => {
+    updateSpeechAnalyticsState("microphoneMuteState", value);
+  })
+
+  //Function to update the demo apps speech analytics state. This is needed to derive combined states like "crosstalk".
+  function updateSpeechAnalyticsState(key: keyof typeof speechAnalyticsState, value: boolean | undefined) {
+    speechAnalyticsState[key] = value;
+    ui.updateSpeechAnalytics(speechAnalyticsState);
+  }
+}
+
+/**
+ * Using the Jabra SDK Properties Module, setup observation of battery and call state telemetry properties from the device and print all changes received from
+ * the device to the UI as raw events.
+ */
+async function observeBatteryCallStateTelemetry(device: IDevice) {
+  // List the Jabra device properties and prepare them for use on the device
+  const propertyNames = [
+    "batteryLevel",
+    "isCharging",
+    "lineBusy",
+    "microphoneMuteState"
+  ];
+  const propertyMap = await propertyFactory.createProperties(device, propertyNames);
+  ui.writeOutput("Property map for battery and call state telemetry properties created", { deviceName: device.name });
+
+  // Subscribe to `watch()` observable properties. Note that not all properties support `watch()`.
+  watchProperty(device, propertyMap.get("batteryLevel"), value => {});
+  watchProperty(device, propertyMap.get("isCharging"), value => {});
+  watchProperty(device, propertyMap.get("lineBusy"), value => {});
   watchProperty(device, propertyMap.get("microphoneMuteState"), value => {
     updateSpeechAnalyticsState("microphoneMuteState", value);
   })
