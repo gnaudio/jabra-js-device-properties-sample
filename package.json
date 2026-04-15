@@ -10,10 +10,14 @@
     "@gnaudio/jabra-js": "$@gnaudio/jabra-js"
   },
   "devDependencies": {
+    "husky": "^9.1.7",
     "vite": "^7.1.2"
   },
   "scripts": {
     "start": "vite",
-    "build": "tsc"
+    "build": "tsc",
+    "build:dist": "vite build",
+    "build:all": "npm run build && npm run build:dist",
+    "prepare": "husky"
   }
 }
