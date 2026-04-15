@@ -1,5 +1,7 @@
 # Jabra JS SDK4 Properties & Button Customization demo
 
+[Live demo page](https://gnaudio.github.io/jabra-js-device-properties-sample/). 
+
 This project is a browser-based demo showing how to work with Properties and Button Customization in the [Jabra JavaScript SDK](https://developer.jabra.com/sdks-and-tools/javascript). 
 
 ## Features
@@ -11,6 +13,7 @@ This project is a browser-based demo showing how to work with Properties and But
 - For Jabra Engage 55/65/75 series the demo supports subscribing to battery states, call state and microphone mute state. Please note that these headsets do not support connecting with WebHID - please install [End-user components](https://developer.jabra.com/sdks-and-tools/javascript#end-user-components) to try out this part of the demo. 
 
 ## Getting Started
+[Try out live demo page](https://gnaudio.github.io/jabra-js-device-properties-sample/). 
 
 1. **Install dependencies:**
 	```sh
