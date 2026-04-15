@@ -16,7 +16,7 @@
   "scripts": {
     "start": "vite",
     "build": "tsc",
-    "build:dist": "vite build",
+    "build:dist": "vite build --outDir docs",
     "build:all": "npm run build && npm run build:dist",
     "prepare": "husky"
   }
